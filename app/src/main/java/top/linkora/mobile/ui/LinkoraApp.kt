@@ -45,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import top.linkora.mobile.R
+import top.linkora.mobile.auth.AuthUiState
 import top.linkora.mobile.model.ProjectTemplate
 import top.linkora.mobile.model.projectTemplates
 import top.linkora.mobile.ui.theme.Charcoal
@@ -61,7 +62,13 @@ private enum class OnboardingStep {
 }
 
 @Composable
-fun LinkoraApp(onOpenWebSignIn: () -> Unit) {
+fun LinkoraApp(
+    authState: AuthUiState,
+    onStartSignIn: () -> Unit,
+    onReopenBrowser: () -> Unit,
+    onCancelSignIn: () -> Unit,
+    onSignOut: () -> Unit,
+) {
     var step by rememberSaveable { mutableStateOf(OnboardingStep.ProjectType) }
     var selectedProjectId by rememberSaveable { mutableStateOf<String?>(null) }
     val selectedProject = projectTemplates.firstOrNull { it.id == selectedProjectId }
@@ -84,7 +91,11 @@ fun LinkoraApp(onOpenWebSignIn: () -> Unit) {
 
                 OnboardingStep.WebSignIn -> WebSignInScreen(
                     selectedProject = requireNotNull(selectedProject),
-                    onOpenWebSignIn = onOpenWebSignIn,
+                    authState = authState,
+                    onStartSignIn = onStartSignIn,
+                    onReopenBrowser = onReopenBrowser,
+                    onCancelSignIn = onCancelSignIn,
+                    onSignOut = onSignOut,
                     onChangeProject = { step = OnboardingStep.ProjectType },
                 )
             }
@@ -337,7 +348,11 @@ private fun ProjectTemplateCard(
 @Composable
 private fun WebSignInScreen(
     selectedProject: ProjectTemplate,
-    onOpenWebSignIn: () -> Unit,
+    authState: AuthUiState,
+    onStartSignIn: () -> Unit,
+    onReopenBrowser: () -> Unit,
+    onCancelSignIn: () -> Unit,
+    onSignOut: () -> Unit,
     onChangeProject: () -> Unit,
 ) {
     LazyColumn(
@@ -400,13 +415,26 @@ private fun WebSignInScreen(
         }
 
         item {
+            AuthenticationStatusCard(
+                authState = authState,
+                onReopenBrowser = onReopenBrowser,
+            )
+        }
+
+        item {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .windowInsetsPadding(WindowInsets.navigationBars),
             ) {
                 Button(
-                    onClick = onOpenWebSignIn,
+                    onClick = when (authState) {
+                        is AuthUiState.SignedIn -> onSignOut
+                        is AuthUiState.AwaitingApproval -> onReopenBrowser
+                        else -> onStartSignIn
+                    },
+                    enabled = authState !is AuthUiState.Starting &&
+                        authState !is AuthUiState.Restoring,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp),
@@ -416,7 +444,25 @@ private fun WebSignInScreen(
                         contentColor = WarmPaper,
                     ),
                 ) {
-                    Text("Continue in browser", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        text = when (authState) {
+                            AuthUiState.Restoring -> "Checking saved session..."
+                            AuthUiState.Starting -> "Preparing secure sign-in..."
+                            is AuthUiState.AwaitingApproval -> "Open approval page"
+                            is AuthUiState.SignedIn -> "Sign out"
+                            else -> "Continue in browser"
+                        },
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
+                if (authState is AuthUiState.AwaitingApproval) {
+                    TextButton(
+                        onClick = onCancelSignIn,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.textButtonColors(contentColor = Oxblood),
+                    ) {
+                        Text("Cancel sign-in", style = MaterialTheme.typography.labelLarge)
+                    }
                 }
                 TextButton(
                     onClick = onChangeProject,
@@ -424,6 +470,104 @@ private fun WebSignInScreen(
                     colors = ButtonDefaults.textButtonColors(contentColor = Oxblood),
                 ) {
                     Text("Change project type", style = MaterialTheme.typography.labelLarge)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AuthenticationStatusCard(
+    authState: AuthUiState,
+    onReopenBrowser: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, PaleStone),
+        colors = CardDefaults.cardColors(containerColor = PaperRaised),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            when (authState) {
+                AuthUiState.Restoring -> {
+                    SectionLabel("CHECKING SESSION")
+                    Text(
+                        text = "Looking for a saved Linkora account...",
+                        modifier = Modifier.padding(top = 10.dp),
+                        color = MutedText,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+
+                AuthUiState.SignedOut -> {
+                    SectionLabel("NOT CONNECTED")
+                    Text(
+                        text = "Sign in through linkora.top to connect this device without sharing your password with the app.",
+                        modifier = Modifier.padding(top = 10.dp),
+                        color = MutedText,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+
+                AuthUiState.Starting -> {
+                    SectionLabel("STARTING SECURE SIGN-IN")
+                    Text(
+                        text = "Requesting a one-time device authorization code...",
+                        modifier = Modifier.padding(top = 10.dp),
+                        color = MutedText,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+
+                is AuthUiState.AwaitingApproval -> {
+                    SectionLabel("WAITING FOR APPROVAL")
+                    Text(
+                        text = authState.userCode,
+                        modifier = Modifier.padding(top = 10.dp),
+                        color = Oxblood,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Black,
+                    )
+                    Text(
+                        text = "Confirm this code in the browser, approve Linkora Android, then return here. The app will finish automatically.",
+                        modifier = Modifier.padding(top = 10.dp),
+                        color = MutedText,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    TextButton(
+                        onClick = onReopenBrowser,
+                        modifier = Modifier.padding(top = 4.dp),
+                        colors = ButtonDefaults.textButtonColors(contentColor = Oxblood),
+                    ) {
+                        Text("Open browser again")
+                    }
+                }
+
+                is AuthUiState.SignedIn -> {
+                    SectionLabel("ACCOUNT CONNECTED")
+                    Text(
+                        text = authState.session.email,
+                        modifier = Modifier.padding(top = 10.dp),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = "Hostname quota: ${authState.session.hostnameQuota}",
+                        modifier = Modifier.padding(top = 6.dp),
+                        color = MutedText,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+
+                is AuthUiState.Error -> {
+                    SectionLabel("SIGN-IN NEEDS ATTENTION")
+                    Text(
+                        text = authState.message,
+                        modifier = Modifier.padding(top = 10.dp),
+                        color = Oxblood,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 }
             }
         }
