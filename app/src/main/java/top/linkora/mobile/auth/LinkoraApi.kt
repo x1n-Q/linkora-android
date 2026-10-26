@@ -78,7 +78,7 @@ class LinkoraApi(
             connection.connectTimeout = 15_000
             connection.readTimeout = 20_000
             connection.setRequestProperty("Accept", "application/json")
-            connection.setRequestProperty("User-Agent", "Linkora-Android/0.1.0")
+            connection.setRequestProperty("User-Agent", "Linkora-Android/0.1.1")
             accessToken?.let {
                 connection.setRequestProperty("Authorization", "Bearer $it")
             }
