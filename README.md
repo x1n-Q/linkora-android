@@ -14,7 +14,7 @@ Lightweight Android companion for Linkora, built with Kotlin and Jetpack Compose
 - Android Keystore-encrypted access-token storage
 - Linkora domain-pool and managed-hostname integration
 - New or existing Linkora URL assignment through the production API
-- Cloudflare connector handoff to Termux
+- Built-in Cloudflare connector with foreground status and automatic reconnect
 - Linkora brand colors and Android launcher icon
 
 Sign-in uses Linkora's one-time device authorization flow. The app opens the
@@ -31,11 +31,12 @@ the approved request for a revocable device token.
 5. Open **Preview local server** and reload after edits.
 6. Tap **Assign Linkora URL** to reserve a hostname or use an existing managed
    hostname.
-7. Copy the generated connector command, open Termux, paste it, and press Enter.
+7. Linkora starts its built-in connector and keeps the phone-hosted project online.
 
 The selected folder remains the source of truth. Linkora does not copy imported
-projects into private app storage. Node.js, PHP, and Python runtime support is
-shown as planned and is intentionally disabled in this release.
+projects into private app storage. The built-in connector currently supports
+ARM64 Android phones. Node.js, PHP, and Python runtime support is shown as
+planned and is intentionally disabled in this release.
 
 ## Build requirements
 
