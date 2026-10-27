@@ -3,12 +3,8 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-
-    <queries>
-        <package android:name="com.termux" />
-    </queries>
 
     <application
         android:allowBackup="true"
@@ -30,7 +26,20 @@
         <service
             android:name=".project.ProjectServerService"
             android:exported="false"
-            android:foregroundServiceType="dataSync" />
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Serves a user-selected local web project while the user keeps it active." />
+        </service>
+        <service
+            android:name=".connector.TunnelConnectorService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            android:stopWithTask="false">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keeps a user-started outbound Linkora tunnel connected to this phone." />
+        </service>
     </application>
 
 </manifest>
