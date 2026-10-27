@@ -11,8 +11,8 @@ android {
         applicationId = "top.linkora.mobile"
         minSdk = 26
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.1.1"
+        versionCode = 4
+        versionName = "0.2.1"
     }
 
     buildTypes {
@@ -56,6 +56,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.4")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    implementation("org.nanohttpd:nanohttpd:2.3.1")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

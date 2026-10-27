@@ -4,13 +4,17 @@ import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
+import top.linkora.mobile.publish.DomainPool
+import top.linkora.mobile.publish.ManagedHostname
+import top.linkora.mobile.publish.TunnelAccess
 
 class LinkoraApi(
     private val baseUrl: String = "https://api.linkora.top",
 ) {
     suspend fun startDeviceAuthorization(): DeviceAuthorization = withContext(Dispatchers.IO) {
-        val data = request(
+        val data = requestObject(
             path = "/api/desktop/device/start",
             method = "POST",
             body = JSONObject()
@@ -28,7 +32,7 @@ class LinkoraApi(
     }
 
     suspend fun pollDeviceToken(deviceCode: String): DeviceTokenResult = withContext(Dispatchers.IO) {
-        val data = request(
+        val data = requestObject(
             path = "/api/desktop/device/token",
             method = "POST",
             body = JSONObject().put("deviceCode", deviceCode).toString(),
@@ -45,7 +49,7 @@ class LinkoraApi(
     }
 
     suspend fun getSession(accessToken: String): LinkoraSession = withContext(Dispatchers.IO) {
-        val data = request(
+        val data = requestObject(
             path = "/api/desktop/session",
             accessToken = accessToken,
         )
@@ -59,26 +63,152 @@ class LinkoraApi(
     }
 
     suspend fun revokeSession(accessToken: String) = withContext(Dispatchers.IO) {
-        request(
+        requestObject(
             path = "/api/desktop/session/revoke",
             method = "POST",
             accessToken = accessToken,
         )
     }
 
-    private fun request(
+    suspend fun getDomainPools(accessToken: String): List<DomainPool> =
+        withContext(Dispatchers.IO) {
+            val data = requestArray(
+                path = "/api/subdomains/pools",
+                accessToken = accessToken,
+            )
+            buildList {
+                for (index in 0 until data.length()) {
+                    val pool = data.optJSONObject(index) ?: continue
+                    val id = pool.optString("id")
+                    val domain = pool.optString("domain")
+                    if (id.isNotBlank() && domain.isNotBlank()) {
+                        add(DomainPool(id = id, domain = domain))
+                    }
+                }
+            }
+        }
+
+    suspend fun getManagedHostnames(accessToken: String): List<ManagedHostname> =
+        withContext(Dispatchers.IO) {
+            val data = requestObject(
+                path = "/api/subdomains/my",
+                accessToken = accessToken,
+            ).optJSONArray("subdomains") ?: JSONArray()
+            buildList {
+                for (index in 0 until data.length()) {
+                    val hostname = data.optJSONObject(index) ?: continue
+                    if (hostname.optString("connectionType") != "MANAGED_TUNNEL") continue
+                    val id = hostname.optString("id")
+                    val name = hostname.optString("hostname")
+                    if (id.isBlank() || name.isBlank()) continue
+                    add(
+                        ManagedHostname(
+                            id = id,
+                            hostname = name,
+                            tunnelId = hostname.optJSONObject("managedTunnel")
+                                ?.optString("id")
+                                ?.takeIf(String::isNotBlank),
+                            status = hostname.optString("status"),
+                        ),
+                    )
+                }
+            }
+        }
+
+    suspend fun claimManagedHostname(
+        accessToken: String,
+        poolId: String,
+        label: String,
+        localServiceUrl: String,
+    ): ManagedHostname = withContext(Dispatchers.IO) {
+        val data = requestObject(
+            path = "/api/subdomains",
+            method = "POST",
+            body = JSONObject()
+                .put("domainPoolId", poolId)
+                .put("label", label)
+                .put("connectionType", "MANAGED_TUNNEL")
+                .put("target", localServiceUrl)
+                .toString(),
+            accessToken = accessToken,
+        )
+        ManagedHostname(
+            id = data.requiredString("id"),
+            hostname = data.requiredString("hostname"),
+            tunnelId = data.optJSONObject("managedTunnel")
+                ?.optString("id")
+                ?.takeIf(String::isNotBlank),
+            status = data.optString("status"),
+        )
+    }
+
+    suspend fun createTunnel(
+        accessToken: String,
+        subdomainId: String,
+        hostname: String,
+        localServiceUrl: String,
+    ): TunnelAccess = withContext(Dispatchers.IO) {
+        val data = requestObject(
+            path = "/api/tunnels",
+            method = "POST",
+            body = JSONObject()
+                .put("subdomainId", subdomainId)
+                .put("localServiceUrl", localServiceUrl)
+                .toString(),
+            accessToken = accessToken,
+        )
+        TunnelAccess(
+            hostname = hostname,
+            token = data.requiredString("token"),
+        )
+    }
+
+    suspend fun connectTunnel(
+        accessToken: String,
+        tunnelId: String,
+        localServiceUrl: String,
+    ): TunnelAccess = withContext(Dispatchers.IO) {
+        val data = requestObject(
+            path = "/api/desktop/tunnels/${java.net.URLEncoder.encode(tunnelId, Charsets.UTF_8.name())}/connect",
+            method = "POST",
+            body = JSONObject().put("localServiceUrl", localServiceUrl).toString(),
+            accessToken = accessToken,
+        )
+        TunnelAccess(
+            hostname = data.requiredString("hostname"),
+            token = data.requiredString("tunnelToken"),
+        )
+    }
+
+    private fun requestObject(
         path: String,
         method: String = "GET",
         body: String? = null,
         accessToken: String? = null,
-    ): JSONObject {
+    ): JSONObject = requestData(path, method, body, accessToken) as? JSONObject
+        ?: throw LinkoraApiException(500, "Linkora returned an invalid object response.")
+
+    private fun requestArray(
+        path: String,
+        method: String = "GET",
+        body: String? = null,
+        accessToken: String? = null,
+    ): JSONArray = requestData(path, method, body, accessToken) as? JSONArray
+        ?: throw LinkoraApiException(500, "Linkora returned an invalid list response.")
+
+    private fun requestData(
+        path: String,
+        method: String = "GET",
+        body: String? = null,
+        accessToken: String? = null,
+    ): Any {
         val connection = URL("$baseUrl$path").openConnection() as HttpURLConnection
         try {
             connection.requestMethod = method
             connection.connectTimeout = 15_000
             connection.readTimeout = 20_000
             connection.setRequestProperty("Accept", "application/json")
-            connection.setRequestProperty("User-Agent", "Linkora-Android/0.1.1")
+            connection.setRequestProperty("User-Agent", "Linkora-Android/0.2.1")
             accessToken?.let {
                 connection.setRequestProperty("Authorization", "Bearer $it")
             }
@@ -105,7 +235,7 @@ class LinkoraApi(
                 )
             }
 
-            return envelope.optJSONObject("data") ?: JSONObject()
+            return envelope.opt("data") ?: JSONObject()
         } finally {
             connection.disconnect()
         }

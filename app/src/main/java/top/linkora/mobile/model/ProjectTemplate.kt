@@ -6,6 +6,7 @@ data class ProjectTemplate(
     val name: String,
     val description: String,
     val runtimePackage: String?,
+    val available: Boolean,
 )
 
 val projectTemplates = listOf(
@@ -15,6 +16,7 @@ val projectTemplates = listOf(
         name = "Static site",
         description = "Serve HTML, CSS, and JavaScript without installing a runtime.",
         runtimePackage = null,
+        available = true,
     ),
     ProjectTemplate(
         id = "node",
@@ -22,6 +24,7 @@ val projectTemplates = listOf(
         name = "Node.js",
         description = "Run npm projects with a Termux-managed Node.js runtime.",
         runtimePackage = "nodejs-lts",
+        available = false,
     ),
     ProjectTemplate(
         id = "php",
@@ -29,6 +32,7 @@ val projectTemplates = listOf(
         name = "PHP",
         description = "Run PHP applications and built-in development servers.",
         runtimePackage = "php",
+        available = false,
     ),
     ProjectTemplate(
         id = "python",
@@ -36,5 +40,6 @@ val projectTemplates = listOf(
         name = "Python",
         description = "Run Python web projects from an isolated Termux workspace.",
         runtimePackage = "python",
+        available = false,
     ),
 )
