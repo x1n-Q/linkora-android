@@ -3,7 +3,9 @@
 ## cloudflared
 
 Linkora for Android includes `cloudflared` 2026.10.4, compiled from the
-official Cloudflare source for Android ARM64.
+official Cloudflare source with the Android NDK for ARM64. It is packaged as a
+native executable library so Android can verify and execute it from the app
+install.
 
 - Project: https://github.com/cloudflare/cloudflared
 - Copyright: Cloudflare, Inc.

@@ -89,7 +89,7 @@ class TunnelConnectorService : Service() {
 
     private suspend fun runConnector(hostname: String, token: String) {
         try {
-            val executable = CloudflaredBinary.install(applicationContext)
+            val executable = CloudflaredBinary.resolve(applicationContext)
             waitForLocalServer()
             var attempt = 0
             while (currentCoroutineContext().isActive && attempt < MAX_ATTEMPTS) {

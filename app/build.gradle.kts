@@ -11,8 +11,8 @@ android {
         applicationId = "top.linkora.mobile"
         minSdk = 26
         targetSdk = 36
-        versionCode = 6
-        versionName = "0.3.1"
+        versionCode = 7
+        versionName = "0.3.2"
     }
 
     buildTypes {
@@ -35,6 +35,10 @@ android {
     }
 
     packaging {
+        jniLibs {
+            useLegacyPackaging = true
+            keepDebugSymbols += "**/libcloudflared.so"
+        }
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }

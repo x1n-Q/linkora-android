@@ -6,48 +6,27 @@ import java.io.File
 import java.security.MessageDigest
 
 object CloudflaredBinary {
-    private const val VERSION = "2026.10.4"
-    private const val ARM64_ASSET = "connector/arm64-v8a/cloudflared"
+    private const val LIBRARY_NAME = "libcloudflared.so"
     private const val ARM64_SHA256 =
-        "7dc0450438a0091629a9a1aa2f415a7fcc84235a92e3554fd5589f0e4b9f23f9"
+        "218a64c6c09cdb0cb9c751cde31b976c0a1c4db9fd6d6d512c4ef96f374840e1"
 
-    fun install(context: Context): File {
+    fun resolve(context: Context): File {
         check(Build.SUPPORTED_ABIS.any { it == "arm64-v8a" }) {
             "The built-in Linkora connector currently requires an ARM64 Android device."
         }
 
-        val directory = File(context.filesDir, "connector").apply {
-            check(mkdirs() || isDirectory) { "The connector directory could not be created." }
+        val executable = File(context.applicationInfo.nativeLibraryDir, LIBRARY_NAME)
+        check(executable.isFile) {
+            "The bundled Linkora connector is missing."
         }
-        val destination = File(directory, "cloudflared-$VERSION")
-        if (destination.isFile && destination.sha256() == ARM64_SHA256) {
-            check(destination.setExecutable(true, true) || destination.canExecute()) {
-                "The Linkora connector could not be made executable."
-            }
-            return destination
-        }
-
-        val temporary = File(directory, "cloudflared-$VERSION.tmp")
-        temporary.delete()
-        context.assets.open(ARM64_ASSET).use { source ->
-            temporary.outputStream().use { output -> source.copyTo(output) }
-        }
-        check(temporary.sha256() == ARM64_SHA256) {
-            temporary.delete()
+        check(executable.sha256() == ARM64_SHA256) {
             "The bundled Linkora connector failed its integrity check."
         }
-        check(temporary.setExecutable(true, true)) {
-            temporary.delete()
-            "The Linkora connector could not be made executable."
+        check(executable.canExecute()) {
+            "Android did not install the Linkora connector as executable code."
         }
-        if (destination.exists()) check(destination.delete()) {
-            "The old Linkora connector could not be replaced."
-        }
-        check(temporary.renameTo(destination)) {
-            temporary.delete()
-            "The Linkora connector could not be installed."
-        }
-        return destination
+        File(context.filesDir, "connector").deleteRecursively()
+        return executable
     }
 
     private fun File.sha256(): String {
