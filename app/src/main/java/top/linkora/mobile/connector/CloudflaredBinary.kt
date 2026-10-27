@@ -9,7 +9,7 @@ object CloudflaredBinary {
     private const val VERSION = "2026.10.4"
     private const val ARM64_ASSET = "connector/arm64-v8a/cloudflared"
     private const val ARM64_SHA256 =
-        "2b7203b4fb0ba28a0c1e12f8855ce2c25f76d266a8d5edafac5540b6812acff6"
+        "7dc0450438a0091629a9a1aa2f415a7fcc84235a92e3554fd5589f0e4b9f23f9"
 
     fun install(context: Context): File {
         check(Build.SUPPORTED_ABIS.any { it == "arm64-v8a" }) {
