@@ -11,6 +11,7 @@ import kotlinx.coroutines.launch
 import top.linkora.mobile.auth.LinkoraApi
 import top.linkora.mobile.auth.LinkoraApiException
 import top.linkora.mobile.auth.TokenStore
+import top.linkora.mobile.connector.TunnelConnectorService
 import top.linkora.mobile.project.ProjectWorkspaceManager
 
 class PublishViewModel(application: Application) : AndroidViewModel(application) {
@@ -98,12 +99,8 @@ class PublishViewModel(application: Application) : AndroidViewModel(application)
         ?: throw LinkoraApiException(401, "Sign in again before assigning a URL.")
 
     private fun TunnelAccess.publishedState(): PublishUiState.Published {
-        val safeToken = token.replace("'", "'\\''")
-        return PublishUiState.Published(
-            hostname = hostname,
-            connectorCommand =
-                "pkg install -y cloudflared && cloudflared tunnel --no-autoupdate run --token '$safeToken'",
-        )
+        TunnelConnectorService.start(getApplication(), hostname, token)
+        return PublishUiState.Published(hostname = hostname)
     }
 
     private fun Exception.userMessage(): String = when (this) {

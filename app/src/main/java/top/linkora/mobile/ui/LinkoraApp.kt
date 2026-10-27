@@ -1,12 +1,8 @@
 package top.linkora.mobile.ui
 
 import android.annotation.SuppressLint
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.widget.Toast
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -66,6 +62,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import top.linkora.mobile.R
 import top.linkora.mobile.auth.AuthUiState
+import top.linkora.mobile.connector.TunnelConnectorState
 import top.linkora.mobile.model.ProjectTemplate
 import top.linkora.mobile.model.projectTemplates
 import top.linkora.mobile.project.ProjectWorkspace
@@ -93,6 +90,7 @@ fun LinkoraApp(
     authState: AuthUiState,
     projectState: ProjectWorkspaceState,
     publishState: PublishUiState,
+    connectorState: TunnelConnectorState,
     onStartSignIn: () -> Unit,
     onReopenBrowser: () -> Unit,
     onCancelSignIn: () -> Unit,
@@ -102,7 +100,7 @@ fun LinkoraApp(
     onClaimHostname: (String, String) -> Unit,
     onConnectHostname: (ManagedHostname) -> Unit,
     onOpenFiles: () -> Unit,
-    onOpenTermux: () -> Unit,
+    onStopConnector: () -> Unit,
 ) {
     var step by rememberSaveable { mutableStateOf(OnboardingStep.ProjectType) }
     var selectedProjectId by rememberSaveable { mutableStateOf<String?>("static") }
@@ -200,10 +198,11 @@ fun LinkoraApp(
 
                 OnboardingStep.Publish -> PublishScreen(
                     state = publishState,
+                    connectorState = connectorState,
                     onClaimHostname = onClaimHostname,
                     onConnectHostname = onConnectHostname,
                     onRetry = onLoadPublish,
-                    onOpenTermux = onOpenTermux,
+                    onStopConnector = onStopConnector,
                     onBack = { step = OnboardingStep.Workspace },
                 )
             }
@@ -911,10 +910,11 @@ private fun ProjectPreviewScreen(
 @Composable
 private fun PublishScreen(
     state: PublishUiState,
+    connectorState: TunnelConnectorState,
     onClaimHostname: (String, String) -> Unit,
     onConnectHostname: (ManagedHostname) -> Unit,
     onRetry: () -> Unit,
-    onOpenTermux: () -> Unit,
+    onStopConnector: () -> Unit,
     onBack: () -> Unit,
 ) {
     BackHandler(onBack = onBack)
@@ -987,7 +987,8 @@ private fun PublishScreen(
             is PublishUiState.Published -> item {
                 PublishedPanel(
                     state = state,
-                    onOpenTermux = onOpenTermux,
+                    connectorState = connectorState,
+                    onStopConnector = onStopConnector,
                 )
             }
         }
@@ -1130,9 +1131,45 @@ private fun ReadyPublishPanel(
 @Composable
 private fun PublishedPanel(
     state: PublishUiState.Published,
-    onOpenTermux: () -> Unit,
+    connectorState: TunnelConnectorState,
+    onStopConnector: () -> Unit,
 ) {
     val context = LocalContext.current
+    val matchingState = when (connectorState) {
+        is TunnelConnectorState.Starting -> connectorState.takeIf {
+            it.hostname == state.hostname
+        }
+        is TunnelConnectorState.Running -> connectorState.takeIf {
+            it.hostname == state.hostname
+        }
+        is TunnelConnectorState.Reconnecting -> connectorState.takeIf {
+            it.hostname == state.hostname
+        }
+        is TunnelConnectorState.Error -> connectorState.takeIf {
+            it.hostname == state.hostname
+        }
+        TunnelConnectorState.Stopped -> null
+    }
+    val statusLabel = when (matchingState) {
+        is TunnelConnectorState.Running -> "ONLINE"
+        is TunnelConnectorState.Reconnecting -> "RECONNECTING"
+        is TunnelConnectorState.Error -> "CONNECTION FAILED"
+        else -> "CONNECTING"
+    }
+    val statusMessage = when (matchingState) {
+        is TunnelConnectorState.Running ->
+            "This phone is serving the selected project at https://${state.hostname}."
+        is TunnelConnectorState.Reconnecting ->
+            "Linkora is restoring the connection after a network interruption."
+        is TunnelConnectorState.Error -> matchingState.message
+        is TunnelConnectorState.Starting ->
+            "Linkora is starting the built-in connector on this phone."
+        TunnelConnectorState.Stopped, null ->
+            "The connector stopped. Go back and select this hostname to reconnect."
+    }
+    val canStop = matchingState is TunnelConnectorState.Starting ||
+        matchingState is TunnelConnectorState.Running ||
+        matchingState is TunnelConnectorState.Reconnecting
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
@@ -1141,7 +1178,7 @@ private fun PublishedPanel(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
-            SectionLabel("URL RESERVED")
+            SectionLabel(statusLabel)
             Text(
                 text = state.hostname,
                 modifier = Modifier.padding(top = 10.dp),
@@ -1149,39 +1186,40 @@ private fun PublishedPanel(
                 style = MaterialTheme.typography.headlineSmall,
             )
             Text(
-                text = "Start the connector in Termux to bring this URL online. Keep the Linkora project server notification running.",
+                text = statusMessage,
                 modifier = Modifier.padding(top = 12.dp),
-                color = MutedText,
+                color = if (matchingState is TunnelConnectorState.Error) Oxblood else MutedText,
                 style = MaterialTheme.typography.bodyMedium,
             )
-            Button(
-                onClick = {
-                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE)
-                        as ClipboardManager
-                    clipboard.setPrimaryClip(
-                        ClipData.newPlainText("Linkora connector", state.connectorCommand),
-                    )
-                    Toast.makeText(context, "Connector command copied", Toast.LENGTH_SHORT).show()
-                    onOpenTermux()
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 18.dp)
-                    .height(52.dp),
-                shape = MaterialTheme.shapes.medium,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Oxblood,
-                    contentColor = WarmPaper,
-                ),
-            ) {
-                Text("Copy command and open Termux", style = MaterialTheme.typography.labelLarge)
+            if (matchingState is TunnelConnectorState.Running) {
+                Button(
+                    onClick = {
+                        context.startActivity(
+                            Intent(Intent.ACTION_VIEW, Uri.parse("https://${state.hostname}")),
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 18.dp)
+                        .height(52.dp),
+                    shape = MaterialTheme.shapes.medium,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Oxblood,
+                        contentColor = WarmPaper,
+                    ),
+                ) {
+                    Text("Open website", style = MaterialTheme.typography.labelLarge)
+                }
             }
-            Text(
-                text = "Paste the copied command in Termux and press Enter.",
-                modifier = Modifier.padding(top = 12.dp),
-                color = MutedText,
-                style = MaterialTheme.typography.bodyMedium,
-            )
+            if (canStop) {
+                TextButton(
+                    onClick = onStopConnector,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.textButtonColors(contentColor = Oxblood),
+                ) {
+                    Text("Stop publishing", style = MaterialTheme.typography.labelLarge)
+                }
+            }
         }
     }
 }

@@ -29,7 +29,6 @@ sealed interface PublishUiState {
 
     data class Published(
         val hostname: String,
-        val connectorCommand: String,
     ) : PublishUiState
 
     data class Error(val message: String) : PublishUiState

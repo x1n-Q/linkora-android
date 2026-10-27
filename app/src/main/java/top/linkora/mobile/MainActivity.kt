@@ -15,6 +15,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import top.linkora.mobile.auth.LinkoraAuthViewModel
+import top.linkora.mobile.connector.TunnelConnectorService
+import top.linkora.mobile.connector.TunnelConnectorStatus
 import top.linkora.mobile.project.ProjectWorkspaceViewModel
 import top.linkora.mobile.publish.PublishViewModel
 import top.linkora.mobile.ui.LinkoraApp
@@ -48,6 +50,7 @@ class MainActivity : ComponentActivity() {
             val authState by authViewModel.uiState.collectAsState()
             val projectState by projectViewModel.uiState.collectAsState()
             val publishState by publishViewModel.uiState.collectAsState()
+            val connectorState by TunnelConnectorStatus.state.collectAsState()
 
             LaunchedEffect(authViewModel) {
                 authViewModel.browserRequests.collect(::openWebSignIn)
@@ -58,6 +61,7 @@ class MainActivity : ComponentActivity() {
                     authState = authState,
                     projectState = projectState,
                     publishState = publishState,
+                    connectorState = connectorState,
                     onStartSignIn = authViewModel::startSignIn,
                     onReopenBrowser = authViewModel::reopenBrowser,
                     onCancelSignIn = authViewModel::cancelSignIn,
@@ -67,7 +71,7 @@ class MainActivity : ComponentActivity() {
                     onClaimHostname = publishViewModel::claim,
                     onConnectHostname = publishViewModel::connect,
                     onOpenFiles = ::chooseProjectFolder,
-                    onOpenTermux = ::openTermux,
+                    onStopConnector = { TunnelConnectorService.stop(this) },
                 )
             }
         }
@@ -96,11 +100,5 @@ class MainActivity : ComponentActivity() {
                 )
             },
         )
-    }
-
-    private fun openTermux() {
-        val intent = packageManager.getLaunchIntentForPackage("com.termux")
-            ?: Intent(Intent.ACTION_VIEW, Uri.parse("https://termux.dev"))
-        startActivity(intent)
     }
 }
