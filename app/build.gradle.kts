@@ -38,6 +38,7 @@ android {
         jniLibs {
             useLegacyPackaging = true
             keepDebugSymbols += "**/libcloudflared.so"
+            keepDebugSymbols += "**/libnode_runtime.so"
         }
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"

@@ -1,0 +1,49 @@
+diff --git a/deps/zlib/cpu_features.h b/deps/zlib/cpu_features.h
+--- a/deps/zlib/cpu_features.h
++++ b/deps/zlib/cpu_features.h
+@@ -5,6 +5,10 @@
+  * found in the Chromium source repository LICENSE file.
+  */
+ 
++#if defined(__ANDROID__) && !defined(CPU_NO_SIMD)
++#define CPU_NO_SIMD
++#endif
++
+ #include "zlib.h"
+ 
+ /* TODO(cavalcantii): remove checks for x86_flags on deflate.
+diff --git a/deps/v8/third_party/zlib/cpu_features.h b/deps/v8/third_party/zlib/cpu_features.h
+--- a/deps/v8/third_party/zlib/cpu_features.h
++++ b/deps/v8/third_party/zlib/cpu_features.h
+@@ -5,6 +5,10 @@
+  * found in the Chromium source repository LICENSE file.
+  */
+ 
++#if defined(__ANDROID__) && !defined(CPU_NO_SIMD)
++#define CPU_NO_SIMD
++#endif
++
+ #include "zlib.h"
+ 
+ /* TODO(cavalcantii): remove checks for x86_flags on deflate.
+diff --git a/deps/zlib/zlib.gyp b/deps/zlib/zlib.gyp
+--- a/deps/zlib/zlib.gyp
++++ b/deps/zlib/zlib.gyp
+@@ -205,7 +205,7 @@
+               ],
+             }],
+             # Incorporate optimizations where possible.
+-            ['(target_arch in "ia32 x64" and OS!="ios") or arm_fpu=="neon"', {
++            ['(target_arch in "ia32 x64" and OS!="ios") or (arm_fpu=="neon" and OS!="android")', {
+               'dependencies': [ 'zlib_data_chunk_simd' ],
+               'sources': [ '<(ZLIB_ROOT)/slide_hash_simd.h' ]
+             }, {
+@@ -225,7 +225,7 @@
+                 }],
+               ],
+             }],
+-            ['arm_fpu=="neon"', {
++            ['arm_fpu=="neon" and OS!="android"', {
+               'defines': [
+                 '__ARM_NEON__',
+                 'DEFLATE_SLIDE_HASH_NEON',
