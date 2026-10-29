@@ -215,7 +215,7 @@ class TunnelConnectorService : Service() {
 
     private fun buildNotification(hostname: String, status: String) =
         NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_linkora_mark)
+            .setSmallIcon(R.drawable.ic_linkora_notification)
             .setContentTitle(hostname)
             .setContentText("Linkora connector: $status")
             .setOngoing(true)

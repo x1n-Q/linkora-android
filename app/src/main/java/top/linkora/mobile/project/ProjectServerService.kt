@@ -49,7 +49,7 @@ class ProjectServerService : Service() {
     }
 
     private fun buildNotification() = NotificationCompat.Builder(this, CHANNEL_ID)
-        .setSmallIcon(R.drawable.ic_linkora_mark)
+        .setSmallIcon(R.drawable.ic_linkora_notification)
         .setContentTitle("Linkora project is running")
         .setContentText(ProjectWorkspaceManager.LOCAL_URL)
         .setOngoing(true)

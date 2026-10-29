@@ -484,7 +484,7 @@ class NodeRuntimeService : Service() {
 
     private fun buildNotification(status: String) =
         NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_linkora_mark)
+            .setSmallIcon(R.drawable.ic_linkora_notification)
             .setContentTitle("Node.js project running")
             .setContentText(status)
             .setSubText(ProjectWorkspaceManager.LOCAL_URL)
@@ -503,7 +503,7 @@ class NodeRuntimeService : Service() {
                 ),
             )
             .addAction(
-                R.drawable.ic_linkora_mark,
+                R.drawable.ic_linkora_notification,
                 "Stop",
                 PendingIntent.getService(
                     this,
