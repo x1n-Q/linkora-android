@@ -1,8 +1,11 @@
 package top.linkora.mobile
 
+import android.Manifest
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.DocumentsContract
 import androidx.activity.ComponentActivity
@@ -14,6 +17,7 @@ import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.core.content.ContextCompat
 import top.linkora.mobile.auth.LinkoraAuthViewModel
 import top.linkora.mobile.connector.TunnelConnectorService
 import top.linkora.mobile.connector.TunnelConnectorStatus
@@ -30,6 +34,13 @@ class MainActivity : ComponentActivity() {
     private val projectViewModel: ProjectWorkspaceViewModel by viewModels()
     private val publishViewModel: PublishViewModel by viewModels()
     private val nodeRuntimeViewModel: NodeRuntimeViewModel by viewModels()
+    private var pendingNodeAction: (() -> Unit)? = null
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) {
+        pendingNodeAction?.invoke()
+        pendingNodeAction = null
+    }
     private val projectFolderLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) { result ->
@@ -93,10 +104,16 @@ class MainActivity : ComponentActivity() {
                     onConnectHostname = publishViewModel::connect,
                     onOpenFiles = ::chooseProjectFolder,
                     onStopConnector = { TunnelConnectorService.stop(this) },
-                    onStartNode = nodeRuntimeViewModel::start,
-                    onRestartNode = nodeRuntimeViewModel::restart,
+                    onStartNode = {
+                        runWithRuntimeNotification(nodeRuntimeViewModel::start)
+                    },
+                    onRestartNode = {
+                        runWithRuntimeNotification(nodeRuntimeViewModel::restart)
+                    },
                     onStopNode = nodeRuntimeViewModel::stop,
-                    onInstallNodeDependencies = nodeRuntimeViewModel::installDependencies,
+                    onInstallNodeDependencies = {
+                        runWithRuntimeNotification(nodeRuntimeViewModel::installDependencies)
+                    },
                 )
             }
         }
@@ -108,6 +125,21 @@ class MainActivity : ComponentActivity() {
             .setUrlBarHidingEnabled(true)
             .build()
             .launchUrl(this, Uri.parse(url))
+    }
+
+    private fun runWithRuntimeNotification(action: () -> Unit) {
+        val permissionGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS,
+            ) == PackageManager.PERMISSION_GRANTED
+        if (permissionGranted) {
+            action()
+            return
+        }
+
+        pendingNodeAction = action
+        notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
     private fun chooseProjectFolder() {
