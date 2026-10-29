@@ -63,3 +63,10 @@ To reproduce the bundled Node.js binary, follow
 [`docs/node-runtime-build.md`](docs/node-runtime-build.md). Run
 `./gradlew :app:assembleDebug` and install the generated APK on an Android 8.0
 or newer ARM64 device. Android Studio is optional.
+
+## F-Droid preparation
+
+F-Droid metadata is maintained in `.fdroid.yml` and `fastlane/metadata/android`.
+The build recipe remains disabled until a final release commit is tagged and
+the source repository is public. See [`docs/fdroid-release.md`](docs/fdroid-release.md)
+for the release checklist.

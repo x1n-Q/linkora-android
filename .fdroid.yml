@@ -1,0 +1,50 @@
+Categories:
+  - Development
+  - Internet
+License: MIT
+AuthorName: Daniel Depaor
+AuthorEmail: danieldepaor13@gmail.com
+AuthorWebSite: https://danieldepaor.com
+WebSite: https://linkora.top
+SourceCode: https://github.com/x1n-Q/linkora-android
+IssueTracker: https://github.com/x1n-Q/linkora-android/issues
+Changelog: https://github.com/x1n-Q/linkora-android/releases
+
+AntiFeatures:
+  TetheredNet:
+    en-US: Authentication and hostname assignment currently use the fixed linkora.top service.
+
+RepoType: git
+Repo: https://github.com/x1n-Q/linkora-android.git
+
+Builds:
+  - versionName: 0.5.0
+    versionCode: 9
+    commit: v0.5.0
+    disable: Enable after the final public v0.5.0 source tag is created
+    gradle:
+      - yes
+    prebuild:
+      - ./scripts/verify-bundled-runtime.sh
+    scanignore:
+      - app/src/main/jniLibs/arm64-v8a/libc++_shared.so
+      - app/src/main/jniLibs/arm64-v8a/libcloudflared.so
+      - app/src/main/jniLibs/arm64-v8a/libnode_runtime.so
+      - app/src/main/assets/node/npm.zip
+
+MaintainerNotes: |-
+  The APK currently supports ARM64 Android devices only.
+
+  Node.js, npm, cloudflared, and libc++ are free software. Their exact versions,
+  source revisions, build commands, licenses, and expected hashes are documented
+  in docs/node-runtime-build.md, docs/connector-build.md,
+  THIRD_PARTY_NOTICES.md, and scripts/verify-bundled-runtime.sh.
+
+  The build is intentionally disabled while the application is under active
+  development. Before submission, update this build block to the final version,
+  create the matching public source tag, and remove the disable field.
+
+AutoUpdateMode: Version
+UpdateCheckMode: Tags
+CurrentVersion: 0.5.0
+CurrentVersionCode: 9
