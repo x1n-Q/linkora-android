@@ -11,7 +11,9 @@ Lightweight Android companion for Linkora, built with Kotlin and Jetpack Compose
 - Editable starter files in `Download/LinkoraProjects/linkora-starter`
 - Persisted access to any selected folder containing `index.html`
 - Local HTTP server at `http://127.0.0.1:8787` that reads project files on every request
+- Static-site SPA route fallback and optional custom `404.html` responses
 - In-app live preview with manual reload
+- Live Node.js uptime, memory use, runtime logs, and foreground controls
 - Browser-based device authorization through Android Custom Tabs
 - Automatic approval polling and session restoration
 - Android Keystore-encrypted access-token storage
