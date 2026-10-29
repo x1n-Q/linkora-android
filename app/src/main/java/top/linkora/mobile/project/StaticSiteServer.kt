@@ -24,23 +24,55 @@ class StaticSiteServer(context: Context) :
             decodedPath.endsWith('/') -> "${decodedPath.trimStart('/')}index.html"
             else -> decodedPath.trimStart('/')
         }
-        val file = workspace.openProjectFile(requestedFile)
-            ?: return newFixedLengthResponse(Response.Status.NOT_FOUND, MIME_PLAINTEXT, "Not found.")
+        val acceptsHtml = session.headers["accept"]
+            ?.contains("text/html", ignoreCase = true) == true
+        val extensionlessPath = requestedFile.substringAfterLast('/').let { '.' !in it }
+        val resolved = workspace.openProjectFile(requestedFile)?.let {
+            ResolvedProjectFile(it, Response.Status.OK)
+        } ?: if (extensionlessPath) {
+            workspace.openProjectFile("$requestedFile/index.html")?.let {
+                ResolvedProjectFile(it, Response.Status.OK)
+            }
+        } else {
+            null
+        } ?: if (acceptsHtml && extensionlessPath) {
+            workspace.openProjectFile("index.html")?.let {
+                ResolvedProjectFile(it, Response.Status.OK)
+            }
+        } else {
+            null
+        } ?: workspace.openProjectFile("404.html")?.let {
+            ResolvedProjectFile(it, Response.Status.NOT_FOUND)
+        } ?: return newFixedLengthResponse(
+            Response.Status.NOT_FOUND,
+            MIME_PLAINTEXT,
+            "Not found.",
+        )
 
         return try {
             if (session.method == Method.HEAD) {
-                file.close()
-                newFixedLengthResponse(Response.Status.OK, file.mimeType, "")
-            } else if (file.length >= 0) {
-                newFixedLengthResponse(Response.Status.OK, file.mimeType, file.input, file.length)
+                resolved.file.close()
+                newFixedLengthResponse(resolved.status, resolved.file.mimeType, "")
+            } else if (resolved.file.length >= 0) {
+                newFixedLengthResponse(
+                    resolved.status,
+                    resolved.file.mimeType,
+                    resolved.file.input,
+                    resolved.file.length,
+                )
             } else {
-                newChunkedResponse(Response.Status.OK, file.mimeType, file.input)
+                newChunkedResponse(
+                    resolved.status,
+                    resolved.file.mimeType,
+                    resolved.file.input,
+                )
             }.apply {
                 addHeader("Cache-Control", "no-store")
                 addHeader("X-Content-Type-Options", "nosniff")
+                addHeader("Referrer-Policy", "strict-origin-when-cross-origin")
             }
         } catch (error: Exception) {
-            file.close()
+            resolved.file.close()
             newFixedLengthResponse(
                 Response.Status.INTERNAL_ERROR,
                 MIME_PLAINTEXT,
@@ -51,4 +83,9 @@ class StaticSiteServer(context: Context) :
 
     private fun badRequest(): Response =
         newFixedLengthResponse(Response.Status.BAD_REQUEST, MIME_PLAINTEXT, "Invalid path.")
+
+    private data class ResolvedProjectFile(
+        val file: ProjectFile,
+        val status: Response.Status,
+    )
 }
