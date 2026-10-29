@@ -10,6 +10,7 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import java.io.File
+import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.Socket
 import kotlinx.coroutines.CancellationException
@@ -108,9 +109,7 @@ class NodeRuntimeService : Service() {
                 )
                 childProcess = process
                 val logJob = launch {
-                    process.inputStream.bufferedReader().useLines { lines ->
-                        lines.forEach(NodeRuntimeStatus::appendLog)
-                    }
+                    readProcessOutput(process)
                 }
 
                 waitForLocalServer(process)
@@ -191,9 +190,7 @@ class NodeRuntimeService : Service() {
                     launchConfig.projectDirectory,
                 )
                 childProcess = process
-                process.inputStream.bufferedReader().useLines { lines ->
-                    lines.forEach(NodeRuntimeStatus::appendLog)
-                }
+                readProcessOutput(process)
                 val exitCode = process.waitFor()
                 if (childProcess === process) childProcess = null
                 currentCoroutineContext().ensureActive()
@@ -306,6 +303,17 @@ class NodeRuntimeService : Service() {
             if (inherited.isBlank()) directory.absolutePath
             else "${directory.absolutePath}${File.pathSeparator}$inherited",
         )
+    }
+
+    private suspend fun readProcessOutput(process: Process) {
+        try {
+            process.inputStream.bufferedReader().useLines { lines ->
+                lines.forEach(NodeRuntimeStatus::appendLog)
+            }
+        } catch (error: IOException) {
+            currentCoroutineContext().ensureActive()
+            if (process.isAlive) throw error
+        }
     }
 
     private suspend fun waitForLocalServer(process: Process) {
