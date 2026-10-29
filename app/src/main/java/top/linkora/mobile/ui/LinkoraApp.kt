@@ -626,11 +626,19 @@ private fun WorkspaceScreen(
             title = { Text("Some packages may not support Android") },
             text = {
                 Text(
-                    "Linkora's Android Node.js runtime is experimental. Pure JavaScript packages " +
-                        "are supported first. Native packages such as sharp, native bcrypt, and " +
-                        "some SQLite packages may fail to install. npm packages and install scripts " +
-                        "run with Linkora's app permissions, so continue only for projects you trust. " +
-                        "The complete npm log will be shown.",
+                    if (workspace.sqliteCompatibilityDrivers.isNotEmpty()) {
+                        "Linkora detected ${workspace.sqliteCompatibilityDrivers.joinToString()}. " +
+                            "Their native Android binaries will be replaced inside the private " +
+                            "runtime copy with Linkora adapters backed by Node.js SQLite. Common " +
+                            "queries, prepared statements, and transactions are supported; advanced " +
+                            "native APIs may not be. Your selected project files will not be changed."
+                    } else {
+                        "Linkora's Android Node.js runtime is experimental. Pure JavaScript packages " +
+                            "are supported first. Native packages such as sharp and native bcrypt may " +
+                            "fail to install. npm packages and install scripts run with Linkora's app " +
+                            "permissions, so continue only for projects you trust. The complete npm " +
+                            "log will be shown."
+                    },
                 )
             },
             confirmButton = {
@@ -763,8 +771,25 @@ private fun WorkspaceScreen(
                     if (workspace.kind == ProjectKind.Node) {
                         SummaryRow(label = "Runtime", value = "Node.js 24.22.1")
                         SummaryRow(label = "Entry", value = workspace.entryPoint ?: "Not detected")
+                        if (workspace.sqliteCompatibilityDrivers.isNotEmpty()) {
+                            SummaryRow(
+                                label = "SQLite adapter",
+                                value = workspace.sqliteCompatibilityDrivers.joinToString(),
+                            )
+                        }
                     }
                 }
+            }
+        }
+
+        if (workspace.sqliteCompatibilityDrivers.isNotEmpty()) {
+            item {
+                StatusPanel(
+                    label = "SQLITE COMPATIBILITY",
+                    message = "${workspace.sqliteCompatibilityDrivers.joinToString()} will use " +
+                        "Linkora's node:sqlite compatibility layer. Runtime-created database files " +
+                        "are preserved between restarts.",
+                )
             }
         }
 

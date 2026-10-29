@@ -120,6 +120,9 @@ class NodeRuntimeService : Service() {
                 )
                 updateNotification("Syncing project")
                 val launchConfig = ProjectWorkspaceManager(applicationContext).prepareNodeLaunch()
+                val compatibilityDrivers = NodeCompatibilityManager(applicationContext)
+                    .ensureProjectAdapters(launchConfig.projectDirectory)
+                logCompatibilityDrivers(compatibilityDrivers)
                 val executable = NodeBinary.resolve(applicationContext)
                 val commandDirectory = NodeBinary.prepareCommandDirectory(applicationContext, executable)
                 waitForPortRelease()
@@ -208,28 +211,41 @@ class NodeRuntimeService : Service() {
                     clearLogs = true,
                 )
                 val launchConfig = ProjectWorkspaceManager(applicationContext).prepareNodeLaunch()
+                val compatibilityManager = NodeCompatibilityManager(applicationContext)
+                val compatibilityDrivers = compatibilityManager.detectDrivers(
+                    launchConfig.projectDirectory,
+                )
+                logCompatibilityDrivers(compatibilityDrivers)
                 val executable = NodeBinary.resolve(applicationContext)
                 val commandDirectory = NodeBinary.prepareCommandDirectory(applicationContext, executable)
                 val npmCli = NpmBundle.resolveCli(applicationContext)
-
-                NodeRuntimeStatus.update(
-                    NodeRuntimePhase.Installing,
-                    "Installing dependencies with npm ${NpmBundle.VERSION}...",
-                )
-                updateNotification("Installing dependencies")
-                NodeRuntimeStatus.appendLog("npm install --no-audit --no-fund")
-                val process = startNpmProcess(
-                    executable,
-                    commandDirectory,
-                    npmCli,
+                val installSession = compatibilityManager.prepareDependencyInstall(
                     launchConfig.projectDirectory,
                 )
-                childProcess = process
-                readProcessOutput(process)
-                val exitCode = process.waitFor()
-                if (childProcess === process) childProcess = null
-                currentCoroutineContext().ensureActive()
-                check(exitCode == 0) { "npm install stopped with exit code $exitCode." }
+
+                try {
+                    NodeRuntimeStatus.update(
+                        NodeRuntimePhase.Installing,
+                        "Installing dependencies with npm ${NpmBundle.VERSION}...",
+                    )
+                    updateNotification("Installing dependencies")
+                    NodeRuntimeStatus.appendLog("npm install --no-audit --no-fund")
+                    val process = startNpmProcess(
+                        executable,
+                        commandDirectory,
+                        npmCli,
+                        launchConfig.projectDirectory,
+                    )
+                    childProcess = process
+                    readProcessOutput(process)
+                    val exitCode = process.waitFor()
+                    if (childProcess === process) childProcess = null
+                    currentCoroutineContext().ensureActive()
+                    check(exitCode == 0) { "npm install stopped with exit code $exitCode." }
+                } finally {
+                    if (childProcess?.isAlive == true) terminateChildProcess()
+                    installSession.restore()
+                }
 
                 NodeRuntimeStatus.update(
                     NodeRuntimePhase.Idle,
@@ -418,6 +434,13 @@ class NodeRuntimeService : Service() {
             "LD_LIBRARY_PATH",
             if (inherited.isBlank()) directory.absolutePath
             else "${directory.absolutePath}${File.pathSeparator}$inherited",
+        )
+    }
+
+    private fun logCompatibilityDrivers(drivers: List<String>) {
+        if (drivers.isEmpty()) return
+        NodeRuntimeStatus.appendLog(
+            "Linkora SQLite compatibility enabled: ${drivers.joinToString()} (backed by node:sqlite)",
         )
     }
 

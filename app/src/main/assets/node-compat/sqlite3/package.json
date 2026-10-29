@@ -1,0 +1,8 @@
+{
+  "name": "sqlite3",
+  "version": "0.0.0-linkora",
+  "description": "Linkora Android compatibility adapter backed by node:sqlite",
+  "main": "index.js",
+  "type": "commonjs",
+  "license": "MIT"
+}
