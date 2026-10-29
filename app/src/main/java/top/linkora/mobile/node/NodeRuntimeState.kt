@@ -18,6 +18,8 @@ data class NodeRuntimeState(
     val phase: NodeRuntimePhase = NodeRuntimePhase.Idle,
     val message: String = "Node.js ${NodeBinary.VERSION} is ready.",
     val logs: List<String> = emptyList(),
+    val uptimeSeconds: Long? = null,
+    val memoryMb: Long? = null,
 ) {
     val isRunning: Boolean
         get() = phase == NodeRuntimePhase.Running
@@ -43,7 +45,23 @@ object NodeRuntimeStatus {
                 phase = phase,
                 message = message,
                 logs = if (clearLogs) emptyList() else current.logs,
+                uptimeSeconds = if (phase == NodeRuntimePhase.Running) {
+                    current.uptimeSeconds
+                } else {
+                    null
+                },
+                memoryMb = if (phase == NodeRuntimePhase.Running) current.memoryMb else null,
             )
+        }
+    }
+
+    fun updateMetrics(uptimeSeconds: Long, memoryMb: Long) {
+        _state.update { current ->
+            if (current.phase == NodeRuntimePhase.Running) {
+                current.copy(uptimeSeconds = uptimeSeconds, memoryMb = memoryMb)
+            } else {
+                current
+            }
         }
     }
 

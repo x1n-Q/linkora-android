@@ -265,7 +265,12 @@ class NodeRuntimeService : Service() {
         monitorJob?.cancel()
         monitorJob = scope.launch {
             while (process.isAlive) {
-                updateNotification(runtimeNotificationText())
+                val uptimeSeconds = runtimeUptimeSeconds()
+                val memoryMb = runtimeMemoryMb()
+                NodeRuntimeStatus.updateMetrics(uptimeSeconds, memoryMb)
+                updateNotification(
+                    "Uptime ${formatDuration(uptimeSeconds)} | RAM $memoryMb MB",
+                )
                 delay(NOTIFICATION_REFRESH_MS)
             }
         }
@@ -277,11 +282,10 @@ class NodeRuntimeService : Service() {
         runtimeStartedAtMs = null
     }
 
-    private fun runtimeNotificationText(): String {
+    private fun runtimeUptimeSeconds(): Long {
         val startedAt = runtimeStartedAtMs ?: SystemClock.elapsedRealtime()
-        val uptimeSeconds = ((SystemClock.elapsedRealtime() - startedAt) / 1_000L)
+        return ((SystemClock.elapsedRealtime() - startedAt) / 1_000L)
             .coerceAtLeast(0L)
-        return "Uptime ${formatDuration(uptimeSeconds)} | RAM ${runtimeMemoryMb()} MB"
     }
 
     private fun runtimeMemoryMb(): Long {
