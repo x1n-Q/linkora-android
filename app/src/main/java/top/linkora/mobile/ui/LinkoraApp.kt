@@ -773,10 +773,20 @@ private fun WorkspaceScreen(
                 NodeRuntimePanel(
                     workspace = workspace,
                     state = nodeRuntimeState,
+                    onPreview = onPreview,
+                    onChooseProject = onOpenFiles,
                     onStart = onStartNode,
                     onRestart = onRestartNode,
                     onStop = onStopNode,
                     onInstallDependencies = { showNativeModuleWarning = true },
+                )
+            }
+        } else {
+            item {
+                StaticServerPanel(
+                    workspace = workspace,
+                    onPreview = onPreview,
+                    onChooseProject = onOpenFiles,
                 )
             }
         }
@@ -819,67 +829,42 @@ private fun WorkspaceScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .windowInsetsPadding(WindowInsets.navigationBars),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+                SectionLabel("PUBLISH")
                 ActionButton(
                     label = "Assign Linkora URL",
                     onClick = onAssignUrl,
                     enabled = originReady,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                ActionButton(
-                    label = "Choose project folder",
-                    onClick = onOpenFiles,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 10.dp),
-                    style = ActionStyle.Secondary,
-                )
                 Text(
-                    text = if (workspace.kind == ProjectKind.Node) {
-                        "Select a folder with package.json or a supported JavaScript entry file. " +
-                            "The server must listen on process.env.HOST and process.env.PORT."
+                    text = if (originReady) {
+                        "Route a Linkora hostname to this server after checking the local preview."
                     } else {
-                        "Select a folder containing index.html. Android will remember your choice."
+                        "Start the Node.js runtime before assigning a public URL."
                     },
-                    modifier = Modifier.padding(top = 8.dp),
                     color = MutedText,
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                ActionButton(
-                    label = if (originReady) {
-                        "Preview local server"
-                    } else {
-                        "Start Node.js to preview"
-                    },
-                    onClick = onPreview,
-                    enabled = originReady,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 10.dp),
-                    style = ActionStyle.Neutral,
-                )
+                HorizontalDivider(color = PaleStone)
+                SectionLabel("ACCOUNT")
                 Text(
                     text = "Connected as $accountEmail",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     color = MutedText,
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 ActionButton(
                     label = "Change project type",
                     onClick = onChangeProject,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 10.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     style = ActionStyle.Neutral,
                 )
                 ActionButton(
                     label = "Sign out",
                     onClick = onSignOut,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 10.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     style = ActionStyle.Destructive,
                 )
             }
@@ -888,9 +873,74 @@ private fun WorkspaceScreen(
 }
 
 @Composable
+private fun StaticServerPanel(
+    workspace: ProjectWorkspace,
+    onPreview: () -> Unit,
+    onChooseProject: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = PaperRaised,
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, StrongBorder),
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            SectionLabel("STATIC SERVER")
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Serving locally", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = "RUNNING",
+                    color = DustyOlive,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Black,
+                )
+            }
+            Text(
+                text = "Files are read directly from the selected folder. Changes appear after " +
+                    "reload, and client-side routes fall back to index.html.",
+                modifier = Modifier.padding(top = 8.dp),
+                color = MutedText,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            SummaryRow(label = "Address", value = workspace.localUrl)
+            ActionButton(
+                label = "Open preview",
+                onClick = onPreview,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp),
+            )
+            ActionButton(
+                label = "Choose project folder",
+                onClick = onChooseProject,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp),
+                style = ActionStyle.Secondary,
+            )
+            Text(
+                text = "Choose a folder containing index.html. A custom 404.html is supported.",
+                modifier = Modifier.padding(top = 8.dp),
+                color = MutedText,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+    }
+}
+
+@Composable
 private fun NodeRuntimePanel(
     workspace: ProjectWorkspace,
     state: NodeRuntimeState,
+    onPreview: () -> Unit,
+    onChooseProject: () -> Unit,
     onStart: () -> Unit,
     onRestart: () -> Unit,
     onStop: () -> Unit,
@@ -938,6 +988,16 @@ private fun NodeRuntimePanel(
                 color = if (isError) Oxblood else MutedText,
                 style = MaterialTheme.typography.bodyMedium,
             )
+            if (state.isRunning) {
+                SummaryRow(
+                    label = "Uptime",
+                    value = state.uptimeSeconds?.let(::formatRuntimeDuration) ?: "Starting",
+                )
+                SummaryRow(
+                    label = "Memory",
+                    value = state.memoryMb?.let { "$it MB" } ?: "Measuring",
+                )
+            }
             Text(
                 text = "Run only projects you trust. Node.js code runs locally with Linkora's app permissions.",
                 modifier = Modifier.padding(top = 8.dp),
@@ -969,6 +1029,16 @@ private fun NodeRuntimePanel(
             }
 
             ActionButton(
+                label = if (state.isRunning) "Open preview" else "Start Node.js to preview",
+                onClick = onPreview,
+                enabled = state.isRunning,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp),
+                style = ActionStyle.Secondary,
+            )
+
+            ActionButton(
                 label = if (workspace.hasDependencies) {
                     "Install or update npm packages"
                 } else {
@@ -976,6 +1046,16 @@ private fun NodeRuntimePanel(
                 },
                 onClick = onInstallDependencies,
                 enabled = !state.isBusy && !state.isRunning,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp),
+                style = ActionStyle.Neutral,
+            )
+
+            ActionButton(
+                label = "Choose project folder",
+                onClick = onChooseProject,
+                enabled = !state.isBusy,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 10.dp),
@@ -1588,6 +1668,13 @@ private fun SummaryRow(label: String, value: String) {
             fontWeight = FontWeight.Bold,
         )
     }
+}
+
+private fun formatRuntimeDuration(totalSeconds: Long): String {
+    val hours = totalSeconds / 3_600
+    val minutes = totalSeconds % 3_600 / 60
+    val seconds = totalSeconds % 60
+    return "%02d:%02d:%02d".format(hours, minutes, seconds)
 }
 
 @Composable
