@@ -1,0 +1,20 @@
+Linkora turns an ARM64 Android phone into a lightweight project host. Select a
+real folder from Android Files, preview it locally, and optionally assign a
+Linkora hostname without installing Termux.
+
+Features include:
+
+* static HTML, CSS, JavaScript, SPA routing, and custom 404 pages
+* a bundled Node.js 24 LTS runtime and npm
+* visible runtime logs, uptime, memory use, restart, and stop controls
+* project folders that remain editable with ordinary Android file tools
+* local preview at 127.0.0.1 before anything is published
+* outbound managed tunnels without router or inbound-port configuration
+* browser-based Linkora account authorization
+
+Node.js support is experimental and currently targets ARM64 devices. Pure
+JavaScript packages are the supported baseline. Native npm modules may not
+install or run on Android.
+
+The app contains no advertising or analytics SDK. Authentication and hostname
+assignment currently use the fixed linkora.top service.

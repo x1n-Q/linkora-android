@@ -1,0 +1,4 @@
+Added real static and Node.js project hosting, Android Files integration,
+managed Linkora publishing, live preview, background runtime controls, runtime
+logs, uptime and memory reporting, improved mobile branding, and clearer
+project workflows.
