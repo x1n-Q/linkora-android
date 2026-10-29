@@ -700,7 +700,7 @@ private fun WorkspaceScreen(
             )
             Text(
                 text = if (workspace.kind == ProjectKind.Node && workspace.isStarter) {
-                    "The Node.js starter is stored in Downloads. Edit it in Files, then restart Node.js to sync and run the latest source."
+                    "The Node.js sample is stored in Downloads. Edit it in Files, then restart Node.js to sync and run the latest source."
                 } else if (workspace.kind == ProjectKind.Node) {
                     "Edit the selected folder, then restart Node.js to sync and run the latest source."
                 } else if (workspace.isStarter) {

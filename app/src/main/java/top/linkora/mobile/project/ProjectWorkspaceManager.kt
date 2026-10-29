@@ -540,10 +540,17 @@ class ProjectWorkspaceManager(private val context: Context) {
         )
         private val NODE_DEFINITION = ProjectDefinition(
             kind = ProjectKind.Node,
-            slug = "linkora-node-starter",
-            displayName = "Linkora Node Starter",
+            slug = "linkora-node-sample",
+            displayName = "Linkora Node Sample",
             assetRoot = "starter-node",
-            files = listOf("package.json", "server.js", "public/index.html", "public/styles.css"),
+            files = listOf(
+                "package.json",
+                "server.js",
+                "public/index.html",
+                "public/styles.css",
+                "public/app.js",
+                "public/linkora-mark.svg",
+            ),
         )
         private val NODE_ENTRY_CANDIDATES = listOf(
             "server.js",
