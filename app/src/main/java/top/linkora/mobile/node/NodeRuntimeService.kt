@@ -253,6 +253,7 @@ class NodeRuntimeService : Service() {
                     put("PORT", ProjectWorkspaceManager.LOCAL_PORT.toString())
                     put("NODE_ENV", "production")
                     put("NODE_PATH", File(directory, "node_modules").absolutePath)
+                    prependToNativeLibraryPath(File(applicationInfo.nativeLibraryDir))
                     prependToPath(commandDirectory)
                 }
             }
@@ -283,6 +284,7 @@ class NodeRuntimeService : Service() {
                     put("TMPDIR", temporary.absolutePath)
                     put("npm_config_cache", npmCache.absolutePath)
                     put("npm_config_update_notifier", "false")
+                    prependToNativeLibraryPath(File(applicationInfo.nativeLibraryDir))
                     prependToPath(commandDirectory)
                 }
             }
@@ -292,6 +294,15 @@ class NodeRuntimeService : Service() {
         val inherited = get("PATH").orEmpty()
         put(
             "PATH",
+            if (inherited.isBlank()) directory.absolutePath
+            else "${directory.absolutePath}${File.pathSeparator}$inherited",
+        )
+    }
+
+    private fun MutableMap<String, String>.prependToNativeLibraryPath(directory: File) {
+        val inherited = get("LD_LIBRARY_PATH").orEmpty()
+        put(
+            "LD_LIBRARY_PATH",
             if (inherited.isBlank()) directory.absolutePath
             else "${directory.absolutePath}${File.pathSeparator}$inherited",
         )
