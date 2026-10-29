@@ -13,6 +13,7 @@ import androidx.annotation.RequiresApi
 import java.io.File
 import java.io.FilterInputStream
 import java.io.InputStream
+import java.security.MessageDigest
 import org.json.JSONObject
 
 class ProjectWorkspaceManager(private val context: Context) {
@@ -43,12 +44,6 @@ class ProjectWorkspaceManager(private val context: Context) {
         require(uri.scheme == "content") { "Choose a folder from Android Files." }
         val kind = activeKind()
         val workspace = buildTreeWorkspace(uri, kind)
-        if (kind == ProjectKind.Node && selectedTreeUri(kind) != uri) {
-            val runtimeDirectory = File(context.filesDir, NODE_RUNTIME_PROJECT_PATH)
-            check(runtimeDirectory.deleteRecursively()) {
-                "The previous private Node.js workspace could not be cleared."
-            }
-        }
         preferences.edit().putString(selectedTreeKey(kind), uri.toString()).apply()
         activateLocalOrigin(kind)
         return workspace
@@ -60,16 +55,29 @@ class ProjectWorkspaceManager(private val context: Context) {
 
     fun prepareNodeLaunch(): NodeLaunchConfig {
         check(activeKind() == ProjectKind.Node) { "Choose a Node.js project first." }
-        val runtimeDirectory = File(context.filesDir, NODE_RUNTIME_PROJECT_PATH)
-        cleanNodeSource(runtimeDirectory)
+        val runtimeDirectory = nodeRuntimeProjectDirectory().apply {
+            check(mkdirs() || isDirectory) {
+                "The private Node.js workspace could not be created."
+            }
+        }
 
         val selectedTree = selectedTreeUri(ProjectKind.Node)
-        if (selectedTree != null) {
+        val importedFiles = if (selectedTree != null) {
             val rootId = DocumentsContract.getTreeDocumentId(selectedTree)
-            copyTree(selectedTree, rootId, runtimeDirectory, 0)
+            buildSet {
+                copyTree(
+                    treeUri = selectedTree,
+                    parentId = rootId,
+                    destination = runtimeDirectory,
+                    depth = 0,
+                    relativeParent = "",
+                    importedFiles = this,
+                )
+            }
         } else {
             copyStarterToRuntime(NODE_DEFINITION, runtimeDirectory)
         }
+        updateImportedSourceManifest(runtimeDirectory, importedFiles)
 
         val inspection = inspectNodeDirectory(runtimeDirectory)
         return NodeLaunchConfig(
@@ -108,7 +116,11 @@ class ProjectWorkspaceManager(private val context: Context) {
 
     private fun starterWorkspace(definition: ProjectDefinition): ProjectWorkspace {
         val inspection = if (definition.kind == ProjectKind.Node) {
-            NodeInspection(entryPoint = "server.js", hasDependencies = false)
+            NodeInspection(
+                entryPoint = "server.js",
+                hasDependencies = false,
+                sqliteCompatibilityDrivers = emptyList(),
+            )
         } else {
             null
         }
@@ -125,6 +137,7 @@ class ProjectWorkspaceManager(private val context: Context) {
             kind = definition.kind,
             entryPoint = inspection?.entryPoint,
             hasDependencies = inspection?.hasDependencies ?: false,
+            sqliteCompatibilityDrivers = inspection?.sqliteCompatibilityDrivers.orEmpty(),
         )
     }
 
@@ -182,6 +195,7 @@ class ProjectWorkspaceManager(private val context: Context) {
             kind = kind,
             entryPoint = nodeInspection?.entryPoint,
             hasDependencies = nodeInspection?.hasDependencies ?: false,
+            sqliteCompatibilityDrivers = nodeInspection?.sqliteCompatibilityDrivers.orEmpty(),
         )
     }
 
@@ -203,6 +217,7 @@ class ProjectWorkspaceManager(private val context: Context) {
         return NodeInspection(
             entryPoint = entryPoint,
             hasDependencies = manifest?.hasDependencies == true,
+            sqliteCompatibilityDrivers = manifest?.sqliteCompatibilityDrivers.orEmpty(),
         )
     }
 
@@ -228,6 +243,7 @@ class ProjectWorkspaceManager(private val context: Context) {
         return NodeInspection(
             entryPoint = entryPoint,
             hasDependencies = manifest?.hasDependencies == true,
+            sqliteCompatibilityDrivers = manifest?.sqliteCompatibilityDrivers.orEmpty(),
         )
     }
 
@@ -237,15 +253,18 @@ class ProjectWorkspaceManager(private val context: Context) {
         val startScript = manifest.optJSONObject("scripts")?.optString("start")
         val startEntry = startScript
             ?.let { NODE_START_PATTERN.matchEntire(it)?.groupValues?.get(1) }
-        val dependencies = manifest.optJSONObject("dependencies")
-        val developmentDependencies = manifest.optJSONObject("devDependencies")
-        val optionalDependencies = manifest.optJSONObject("optionalDependencies")
+        val dependencyGroups = listOfNotNull(
+            manifest.optJSONObject("dependencies"),
+            manifest.optJSONObject("devDependencies"),
+            manifest.optJSONObject("optionalDependencies"),
+        )
         return NodeManifest(
             main = manifest.optString("main").takeIf(String::isNotBlank),
             startEntry = startEntry,
-            hasDependencies = (dependencies?.length() ?: 0) > 0 ||
-                (developmentDependencies?.length() ?: 0) > 0 ||
-                (optionalDependencies?.length() ?: 0) > 0,
+            hasDependencies = dependencyGroups.any { it.length() > 0 },
+            sqliteCompatibilityDrivers = SQLITE_COMPATIBILITY_DRIVERS.filter { driver ->
+                dependencyGroups.any { it.has(driver) }
+            },
         )
     }
 
@@ -297,7 +316,14 @@ class ProjectWorkspaceManager(private val context: Context) {
         )
     }
 
-    private fun copyTree(treeUri: Uri, parentId: String, destination: File, depth: Int) {
+    private fun copyTree(
+        treeUri: Uri,
+        parentId: String,
+        destination: File,
+        depth: Int,
+        relativeParent: String,
+        importedFiles: MutableSet<String>,
+    ) {
         check(depth <= MAX_TREE_DEPTH) { "The project folder is nested too deeply." }
         check(destination.mkdirs() || destination.isDirectory) {
             "The private Node.js workspace could not be created."
@@ -307,34 +333,46 @@ class ProjectWorkspaceManager(private val context: Context) {
             check(entry.name.isNotBlank() && '/' !in entry.name && '\\' !in entry.name) {
                 "The project contains an unsupported file name."
             }
+            val relativePath = if (relativeParent.isBlank()) {
+                entry.name
+            } else {
+                "$relativeParent/${entry.name}"
+            }
             val output = File(destination, entry.name)
             if (entry.isDirectory) {
-                copyTree(treeUri, entry.id, output, depth + 1)
+                if (output.isFile) check(output.delete()) {
+                    "A previous project file could not be replaced with a directory."
+                }
+                copyTree(
+                    treeUri = treeUri,
+                    parentId = entry.id,
+                    destination = output,
+                    depth = depth + 1,
+                    relativeParent = relativePath,
+                    importedFiles = importedFiles,
+                )
             } else {
+                if (output.isDirectory) check(output.deleteRecursively()) {
+                    "A previous project directory could not be replaced with a file."
+                }
                 val documentUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, entry.id)
                 checkNotNull(context.contentResolver.openInputStream(documentUri)).use { input ->
                     output.outputStream().use { stream -> input.copyTo(stream) }
                 }
+                importedFiles += relativePath
             }
         }
     }
 
-    private fun cleanNodeSource(runtimeDirectory: File) {
-        check(runtimeDirectory.mkdirs() || runtimeDirectory.isDirectory) {
-            "The private Node.js workspace could not be created."
-        }
-        runtimeDirectory.listFiles().orEmpty().forEach { child ->
-            if (child.name != "node_modules") {
-                check(child.deleteRecursively()) {
-                    "The previous private Node.js source could not be cleared."
-                }
-            }
-        }
-    }
-
-    private fun copyStarterToRuntime(definition: ProjectDefinition, destination: File) {
+    private fun copyStarterToRuntime(
+        definition: ProjectDefinition,
+        destination: File,
+    ): Set<String> = buildSet {
         definition.files.forEach { relativePath ->
             val output = File(destination, relativePath)
+            if (output.isDirectory) check(output.deleteRecursively()) {
+                "A previous project directory could not be replaced with a starter file."
+            }
             check(output.parentFile?.mkdirs() != false || output.parentFile?.isDirectory == true)
             val input = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val parent = relativePath.substringBeforeLast('/', "")
@@ -351,7 +389,66 @@ class ProjectWorkspaceManager(private val context: Context) {
             input.use { source ->
                 output.outputStream().use { stream -> source.copyTo(stream) }
             }
+            add(relativePath)
         }
+    }
+
+    private fun updateImportedSourceManifest(
+        runtimeDirectory: File,
+        importedFiles: Set<String>,
+    ) {
+        val metadataDirectory = File(runtimeDirectory, LINKORA_RUNTIME_DIRECTORY).apply {
+            check(mkdirs() || isDirectory) { "Linkora runtime metadata could not be created." }
+        }
+        val manifest = File(metadataDirectory, IMPORTED_SOURCE_MANIFEST)
+        val previousFiles = manifest
+            .takeIf(File::isFile)
+            ?.readLines()
+            .orEmpty()
+            .map(String::trim)
+            .filter(String::isNotBlank)
+            .toSet()
+        val runtimeRoot = runtimeDirectory.canonicalFile
+
+        (previousFiles - importedFiles).forEach { relativePath ->
+            val staleFile = File(runtimeRoot, relativePath).canonicalFile
+            val insideRuntime = staleFile.path.startsWith("${runtimeRoot.path}${File.separator}")
+            if (insideRuntime && staleFile.isFile) {
+                check(staleFile.delete()) { "A removed project source file could not be cleared." }
+            }
+        }
+
+        manifest.writeText(
+            importedFiles.sorted().joinToString(separator = "\n", postfix = "\n"),
+        )
+    }
+
+    private fun nodeRuntimeProjectDirectory(): File {
+        val sourceKey = selectedTreeUri(ProjectKind.Node)?.toString() ?: "linkora-node-starter"
+        val projectId = MessageDigest.getInstance("SHA-256")
+            .digest(sourceKey.toByteArray())
+            .joinToString(separator = "") { byte -> "%02x".format(byte.toInt() and 0xff) }
+            .take(24)
+        val destination = File(context.filesDir, "$NODE_RUNTIME_PROJECT_ROOT/$projectId")
+        migrateLegacyRuntime(destination)
+        return destination
+    }
+
+    private fun migrateLegacyRuntime(destination: File) {
+        if (preferences.getBoolean(LEGACY_RUNTIME_MIGRATED_KEY, false)) return
+        val legacyDirectory = File(context.filesDir, LEGACY_NODE_RUNTIME_PROJECT_PATH)
+        if (legacyDirectory.isDirectory && !destination.exists()) {
+            val moved = legacyDirectory.renameTo(destination)
+            if (!moved) {
+                check(legacyDirectory.copyRecursively(destination, overwrite = true)) {
+                    "The existing Node.js workspace could not be migrated."
+                }
+                check(legacyDirectory.deleteRecursively()) {
+                    "The previous Node.js workspace could not be removed after migration."
+                }
+            }
+        }
+        preferences.edit().putBoolean(LEGACY_RUNTIME_MIGRATED_KEY, true).apply()
     }
 
     private fun queryDocument(documentUri: Uri): DocumentEntry? =
@@ -565,10 +662,15 @@ class ProjectWorkspaceManager(private val context: Context) {
         )
         private val NODE_START_PATTERN = Regex("^\\s*node\\s+([A-Za-z0-9_./-]+)\\s*$")
         private val IGNORED_NODE_DIRECTORIES = setOf("node_modules", ".git", ".linkora")
-        private const val NODE_RUNTIME_PROJECT_PATH = "node/projects/active"
+        private val SQLITE_COMPATIBILITY_DRIVERS = listOf("better-sqlite3", "sqlite3")
+        private const val NODE_RUNTIME_PROJECT_ROOT = "node/projects"
+        private const val LEGACY_NODE_RUNTIME_PROJECT_PATH = "$NODE_RUNTIME_PROJECT_ROOT/active"
+        private const val LINKORA_RUNTIME_DIRECTORY = ".linkora"
+        private const val IMPORTED_SOURCE_MANIFEST = "imported-source-files.txt"
         private const val PREFERENCES = "project_workspace"
         private const val ACTIVE_KIND_KEY = "active_project_kind"
         private const val LEGACY_SELECTED_TREE_KEY = "selected_tree_uri"
+        private const val LEGACY_RUNTIME_MIGRATED_KEY = "legacy_node_runtime_migrated"
         private const val MAX_VISIBLE_FILES = 24
         private const val MAX_TREE_DEPTH = 32
         private val DOCUMENT_COLUMNS = arrayOf(
@@ -595,11 +697,13 @@ private data class NodeManifest(
     val main: String?,
     val startEntry: String?,
     val hasDependencies: Boolean,
+    val sqliteCompatibilityDrivers: List<String>,
 )
 
 private data class NodeInspection(
     val entryPoint: String,
     val hasDependencies: Boolean,
+    val sqliteCompatibilityDrivers: List<String>,
 )
 
 private data class DocumentEntry(

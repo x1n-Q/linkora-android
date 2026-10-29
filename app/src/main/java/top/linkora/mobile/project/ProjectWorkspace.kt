@@ -18,6 +18,7 @@ data class ProjectWorkspace(
     val kind: ProjectKind,
     val entryPoint: String? = null,
     val hasDependencies: Boolean = false,
+    val sqliteCompatibilityDrivers: List<String> = emptyList(),
 )
 
 data class NodeLaunchConfig(
