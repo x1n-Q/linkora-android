@@ -14,6 +14,8 @@ Lightweight Android companion for Linkora, built with Kotlin and Jetpack Compose
 - Static-site SPA route fallback and optional custom `404.html` responses
 - In-app live preview with manual reload
 - Live Node.js uptime, memory use, runtime logs, and foreground controls
+- Persistent, isolated runtime storage for every selected Node.js project
+- Built-in SQLite plus `better-sqlite3` and `sqlite3` compatibility adapters
 - Browser-based device authorization through Android Custom Tabs
 - Automatic approval polling and session restoration
 - Android Keystore-encrypted access-token storage
@@ -40,9 +42,11 @@ the approved request for a revocable device token.
 7. Linkora starts its built-in connector and keeps the phone-hosted project online.
 
 The starter in Downloads or the user-selected folder remains the source of
-truth. Static projects are served directly. Node.js projects are synchronized
-into private app storage whenever the runtime starts or restarts, while
-`node_modules` is retained between runs.
+truth. Static projects are served directly. Node.js source is synchronized into
+a private workspace whenever the runtime starts or restarts. Every selected
+project has separate persistent runtime storage, so generated databases,
+uploads, logs, and `node_modules` survive restarts without changing the source
+folder.
 The built-in connector and Node.js runtime currently support ARM64 Android
 phones. PHP and Python remain planned.
 
@@ -50,8 +54,12 @@ Node.js servers must listen on `process.env.HOST` and `process.env.PORT`.
 Linkora sets these to `127.0.0.1` and `8787` before starting the project.
 
 The Android Node.js runtime is experimental. Pure JavaScript packages are the
-supported baseline. Packages containing native code or install scripts, such as
-`sharp`, native `bcrypt`, and some SQLite packages, may not install or run.
+supported baseline. Linkora adapts common `better-sqlite3` and `sqlite3` APIs to
+Node's built-in SQLite module inside the private runtime copy. Other packages
+containing native code or install scripts, such as `sharp` and native `bcrypt`,
+may not install or run. See
+[`docs/sqlite-compatibility.md`](docs/sqlite-compatibility.md) for the supported
+SQLite surface and limitations.
 
 ## Build requirements
 

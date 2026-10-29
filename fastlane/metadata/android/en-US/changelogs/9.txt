@@ -1,4 +1,6 @@
 Added real static and Node.js project hosting, Android Files integration,
 managed Linkora publishing, live preview, background runtime controls, runtime
 logs, uptime and memory reporting, improved mobile branding, and clearer
-project workflows.
+project workflows. Node.js projects now keep generated runtime data between
+restarts and can adapt common better-sqlite3 and sqlite3 projects to the
+built-in Node.js SQLite module.
