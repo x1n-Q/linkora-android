@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="172dp"
+    android:height="50dp"
+    android:viewportWidth="343"
+    android:viewportHeight="100">
+    <group
+        android:translateX="12"
+        android:translateY="12">
+        <path
+            android:fillColor="#282B26"
+            android:pathData="M14,0.1H0V73H14Z" />
+        <path
+            android:fillColor="#282B26"
+            android:pathData="M41,19H27V73H41ZM41,0.1H27V12.6H41Z" />
+        <path
+            android:fillColor="#282B26"
+            android:pathData="M54,19V73H68V40.6C68,34.2 72.4,30 79.3,30C85.3,30 88.3,33.3 88.3,39.7V73H102.3V36.8C102.3,24.8 95.8,18.1 84.2,18.1C76.9,18.1 72,20.7 68,26.8V19Z" />
+        <group android:translateX="103">
+            <path
+                android:fillColor="#282B26"
+                android:pathData="M6,0H20V43L24,39L53,73H35L20,55V73H6Z" />
+            <path
+                android:fillColor="#282B26"
+                android:pathData="M24,33L37,19H55L33,43Z" />
+        </group>
+        <path
+            android:fillColor="#282B26"
+            android:pathData="M193.6,18.1C177.1,18.1 167,29 167,46.7C167,64.5 177.1,75.3 193.7,75.3C210.2,75.3 220.4,64.5 220.4,47.1C220.4,28.8 210.5,18.1 193.6,18.1ZM193.7,29.4C201.4,29.4 206.4,36.3 206.4,46.9C206.4,57 201.2,64 193.7,64C186.1,64 181,57.1 181,46.7C181,36.3 186.1,29.4 193.7,29.4Z" />
+        <path
+            android:fillColor="#282B26"
+            android:pathData="M228,19V73H242V44.3C242,36.1 246.1,32 254.3,32C255.8,32 256.8,32.1 258.7,32.4V18.2C257.9,18.1 257.6,18.1 257,18.1C250.6,18.1 245.1,22.3 242,29.6V19Z" />
+        <path
+            android:fillColor="#282B26"
+            android:pathData="M318.6,71.3C316.2,69 315.4,67.4 315.4,64.7V34.7C315.4,23.7 307.9,18.1 293.3,18.1C278.7,18.1 271.1,24.3 270.2,36.8H283.7C284.4,31.2 286.7,29.4 293.6,29.4C299,29.4 301.7,31.2 301.7,34.8C301.7,36.6 300.8,38.1 299.3,39C297.4,40 297.4,40 290.5,41.1L284.9,42.1C274.2,43.9 269,49.4 269,59.1C269,68.8 275.5,75.3 285.4,75.3C291.4,75.3 296.8,72.8 301.8,67.6C301.8,70.4 302.1,71.4 303.4,73H318.6ZM301.7,51.3C301.7,59.4 297.7,64 290.6,64C285.9,64 283,61.5 283,57.5C283,53.3 285.2,51.3 291,50.1L295.8,49.2C299.5,48.5 300.1,48.3 301.7,47.5Z" />
+    </group>
+</vector>

@@ -241,24 +241,10 @@ private fun LinkoraHeader() {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Image(
-            painter = painterResource(R.drawable.ic_linkora_mark),
-            contentDescription = null,
-            modifier = Modifier.size(width = 24.dp, height = 32.dp),
+            painter = painterResource(R.drawable.ic_linkora_wordmark),
+            contentDescription = "Linkora",
+            modifier = Modifier.size(width = 137.dp, height = 40.dp),
         )
-        Column(modifier = Modifier.padding(start = 10.dp)) {
-            Text(
-                text = "linkora",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Black,
-            )
-            Text(
-                text = "ANDROID",
-                color = MutedText,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
-            )
-        }
         Spacer(modifier = Modifier.weight(1f))
         Surface(
             color = PaperRaised,
