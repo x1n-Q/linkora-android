@@ -31,6 +31,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -65,7 +66,10 @@ import top.linkora.mobile.auth.AuthUiState
 import top.linkora.mobile.connector.TunnelConnectorState
 import top.linkora.mobile.model.ProjectTemplate
 import top.linkora.mobile.model.projectTemplates
+import top.linkora.mobile.node.NodeRuntimePhase
+import top.linkora.mobile.node.NodeRuntimeState
 import top.linkora.mobile.project.ProjectWorkspace
+import top.linkora.mobile.project.ProjectKind
 import top.linkora.mobile.project.ProjectWorkspaceState
 import top.linkora.mobile.publish.ManagedHostname
 import top.linkora.mobile.publish.PublishUiState
@@ -91,16 +95,22 @@ fun LinkoraApp(
     projectState: ProjectWorkspaceState,
     publishState: PublishUiState,
     connectorState: TunnelConnectorState,
+    nodeRuntimeState: NodeRuntimeState,
     onStartSignIn: () -> Unit,
     onReopenBrowser: () -> Unit,
     onCancelSignIn: () -> Unit,
     onSignOut: () -> Unit,
     onRetryProject: () -> Unit,
+    onPrepareProject: (String) -> Unit,
     onLoadPublish: () -> Unit,
     onClaimHostname: (String, String) -> Unit,
     onConnectHostname: (ManagedHostname) -> Unit,
     onOpenFiles: () -> Unit,
     onStopConnector: () -> Unit,
+    onStartNode: () -> Unit,
+    onRestartNode: () -> Unit,
+    onStopNode: () -> Unit,
+    onInstallNodeDependencies: () -> Unit,
 ) {
     var step by rememberSaveable { mutableStateOf(OnboardingStep.ProjectType) }
     var selectedProjectId by rememberSaveable { mutableStateOf<String?>("static") }
@@ -142,14 +152,8 @@ fun LinkoraApp(
                     selectedProjectId = selectedProjectId,
                     onSelectProject = { selectedProjectId = it.id },
                     onContinue = {
-                        step = if (
-                            authState is AuthUiState.SignedIn &&
-                            projectState is ProjectWorkspaceState.Ready
-                        ) {
-                            OnboardingStep.Workspace
-                        } else {
-                            OnboardingStep.WebSignIn
-                        }
+                        onPrepareProject(requireNotNull(selectedProjectId))
+                        step = OnboardingStep.WebSignIn
                     },
                 )
 
@@ -174,6 +178,7 @@ fun LinkoraApp(
                             workspace = workspace,
                             notice = readyProject.notice,
                             accountEmail = authState.session.email,
+                            nodeRuntimeState = nodeRuntimeState,
                             onPreview = { step = OnboardingStep.Preview },
                             onOpenFiles = onOpenFiles,
                             onAssignUrl = {
@@ -182,6 +187,10 @@ fun LinkoraApp(
                             },
                             onChangeProject = { step = OnboardingStep.ProjectType },
                             onSignOut = onSignOut,
+                            onStartNode = onStartNode,
+                            onRestartNode = onRestartNode,
+                            onStopNode = onStopNode,
+                            onInstallNodeDependencies = onInstallNodeDependencies,
                         )
                     }
                 }
@@ -281,7 +290,7 @@ private fun ProjectTypeScreen(
                     style = MaterialTheme.typography.headlineLarge,
                 )
                 Text(
-                    text = "Static sites are ready now. Runtime projects are shown as planned and cannot be selected yet.",
+                    text = "Choose a static site or run a Node.js server directly on this phone. PHP and Python are planned.",
                     modifier = Modifier.padding(top = 12.dp),
                     color = MutedText,
                     style = MaterialTheme.typography.bodyLarge,
@@ -319,7 +328,7 @@ private fun ProjectTypeScreen(
                     Text("Continue", style = MaterialTheme.typography.labelLarge)
                 }
                 Text(
-                    text = "No runtime will be downloaded without your approval.",
+                    text = "Node.js is bundled with Linkora. The app does not require Termux or download native runtimes.",
                     modifier = Modifier.padding(top = 12.dp),
                     color = MutedText,
                     style = MaterialTheme.typography.bodyMedium,
@@ -434,7 +443,7 @@ private fun ProjectTemplateCard(
                 Text(
                     text = when {
                         !project.available -> "PLANNED / ${project.runtimePackage.orEmpty()}"
-                        project.runtimePackage != null -> "TERMUX PACKAGE / ${project.runtimePackage}"
+                        project.runtimePackage != null -> "BUILT IN / ${project.runtimePackage}"
                         else -> "AVAILABLE / NO RUNTIME REQUIRED"
                     },
                     modifier = Modifier.padding(top = 10.dp),
@@ -524,7 +533,10 @@ private fun WebSignInScreen(
                         label = "Runtime",
                         value = selectedProject.runtimePackage ?: "Built in",
                     )
-                    SummaryRow(label = "Install status", value = "Not installed")
+                    SummaryRow(
+                        label = "Install status",
+                        value = if (selectedProject.id == "node") "Included in app" else "Ready",
+                    )
                 }
             }
         }
@@ -614,12 +626,55 @@ private fun WorkspaceScreen(
     workspace: ProjectWorkspace,
     notice: String?,
     accountEmail: String,
+    nodeRuntimeState: NodeRuntimeState,
     onPreview: () -> Unit,
     onOpenFiles: () -> Unit,
     onAssignUrl: () -> Unit,
     onChangeProject: () -> Unit,
     onSignOut: () -> Unit,
+    onStartNode: () -> Unit,
+    onRestartNode: () -> Unit,
+    onStopNode: () -> Unit,
+    onInstallNodeDependencies: () -> Unit,
 ) {
+    var showNativeModuleWarning by rememberSaveable { mutableStateOf(false) }
+    val originReady = workspace.kind == ProjectKind.Static || nodeRuntimeState.isRunning
+
+    if (showNativeModuleWarning) {
+        AlertDialog(
+            onDismissRequest = { showNativeModuleWarning = false },
+            title = { Text("Some packages may not support Android") },
+            text = {
+                Text(
+                    "Linkora's Android Node.js runtime is experimental. Pure JavaScript packages " +
+                        "are supported first. Native packages such as sharp, native bcrypt, and " +
+                        "some SQLite packages may fail to install. npm packages and install scripts " +
+                        "run with Linkora's app permissions, so continue only for projects you trust. " +
+                        "The complete npm log will be shown.",
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showNativeModuleWarning = false
+                        onInstallNodeDependencies()
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = Oxblood),
+                ) {
+                    Text("Try anyway")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showNativeModuleWarning = false },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MutedText),
+                ) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
@@ -631,14 +686,24 @@ private fun WorkspaceScreen(
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         item {
-            SectionLabel("LOCAL STATIC WORKSPACE")
+            SectionLabel(
+                if (workspace.kind == ProjectKind.Node) "LOCAL NODE.JS WORKSPACE" else "LOCAL STATIC WORKSPACE",
+            )
             Text(
-                text = "Your project is ready.",
+                text = if (workspace.kind == ProjectKind.Node) {
+                    "Run your Node.js project."
+                } else {
+                    "Your project is ready."
+                },
                 modifier = Modifier.padding(top = 12.dp),
                 style = MaterialTheme.typography.headlineLarge,
             )
             Text(
-                text = if (workspace.isStarter) {
+                text = if (workspace.kind == ProjectKind.Node && workspace.isStarter) {
+                    "The Node.js starter is stored in Downloads. Edit it in Files, then restart Node.js to sync and run the latest source."
+                } else if (workspace.kind == ProjectKind.Node) {
+                    "Edit the selected folder, then restart Node.js to sync and run the latest source."
+                } else if (workspace.isStarter) {
                     "This starter is stored in Downloads. Choose it or another folder in Files, then Linkora will serve the real files inside it."
                 } else {
                     "Linkora is serving this folder directly. Edit its files, then reload the local preview."
@@ -683,7 +748,11 @@ private fun WorkspaceScreen(
                             border = BorderStroke(1.dp, DustyOlive),
                         ) {
                             Text(
-                                text = "READY",
+                                text = if (workspace.kind == ProjectKind.Node) {
+                                    nodeRuntimeState.phase.name.uppercase()
+                                } else {
+                                    "READY"
+                                },
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
                                 color = DustyOlive,
                                 fontFamily = FontFamily.Monospace,
@@ -712,7 +781,24 @@ private fun WorkspaceScreen(
                         fontWeight = FontWeight.Bold,
                     )
                     SummaryRow(label = "Local server", value = workspace.localUrl)
+                    if (workspace.kind == ProjectKind.Node) {
+                        SummaryRow(label = "Runtime", value = "Node.js 24.22.1")
+                        SummaryRow(label = "Entry", value = workspace.entryPoint ?: "Not detected")
+                    }
                 }
+            }
+        }
+
+        if (workspace.kind == ProjectKind.Node) {
+            item {
+                NodeRuntimePanel(
+                    workspace = workspace,
+                    state = nodeRuntimeState,
+                    onStart = onStartNode,
+                    onRestart = onRestartNode,
+                    onStop = onStopNode,
+                    onInstallDependencies = { showNativeModuleWarning = true },
+                )
             }
         }
 
@@ -757,6 +843,7 @@ private fun WorkspaceScreen(
             ) {
                 Button(
                     onClick = onAssignUrl,
+                    enabled = originReady,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp),
@@ -784,17 +871,26 @@ private fun WorkspaceScreen(
                     Text("Choose project folder", style = MaterialTheme.typography.labelLarge)
                 }
                 Text(
-                    text = "Select a folder containing index.html. Android will remember your choice.",
+                    text = if (workspace.kind == ProjectKind.Node) {
+                        "Select a folder with package.json or a supported JavaScript entry file. " +
+                            "The server must listen on process.env.HOST and process.env.PORT."
+                    } else {
+                        "Select a folder containing index.html. Android will remember your choice."
+                    },
                     modifier = Modifier.padding(top = 8.dp),
                     color = MutedText,
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 TextButton(
                     onClick = onPreview,
+                    enabled = originReady,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.textButtonColors(contentColor = Oxblood),
                 ) {
-                    Text("Preview local server", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        if (originReady) "Preview local server" else "Start Node.js to preview",
+                        style = MaterialTheme.typography.labelLarge,
+                    )
                 }
                 Text(
                     text = "Connected as $accountEmail",
@@ -817,6 +913,151 @@ private fun WorkspaceScreen(
                     colors = ButtonDefaults.textButtonColors(contentColor = Oxblood),
                 ) {
                     Text("Sign out", style = MaterialTheme.typography.labelLarge)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NodeRuntimePanel(
+    workspace: ProjectWorkspace,
+    state: NodeRuntimeState,
+    onStart: () -> Unit,
+    onRestart: () -> Unit,
+    onStop: () -> Unit,
+    onInstallDependencies: () -> Unit,
+) {
+    val isError = state.phase == NodeRuntimePhase.Error
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = PaperRaised,
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, if (isError) Oxblood else PaleStone),
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            SectionLabel("NODE.JS RUNTIME")
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = when (state.phase) {
+                        NodeRuntimePhase.Idle -> "Ready to start"
+                        NodeRuntimePhase.Syncing -> "Syncing project"
+                        NodeRuntimePhase.Starting -> "Starting"
+                        NodeRuntimePhase.Running -> "Running"
+                        NodeRuntimePhase.Stopping -> "Stopping"
+                        NodeRuntimePhase.Installing -> "Installing packages"
+                        NodeRuntimePhase.Error -> "Needs attention"
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    text = state.phase.name.uppercase(),
+                    color = if (isError) Oxblood else DustyOlive,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Black,
+                )
+            }
+            Text(
+                text = state.message,
+                modifier = Modifier.padding(top = 8.dp),
+                color = if (isError) Oxblood else MutedText,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Text(
+                text = "Run only projects you trust. Node.js code runs locally with Linkora's app permissions.",
+                modifier = Modifier.padding(top = 8.dp),
+                color = MutedText,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Button(
+                    onClick = if (state.isRunning) onRestart else onStart,
+                    enabled = !state.isBusy,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = MaterialTheme.shapes.small,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Oxblood,
+                        contentColor = WarmPaper,
+                    ),
+                ) {
+                    Text(if (state.isRunning) "Restart" else "Start")
+                }
+                Button(
+                    onClick = onStop,
+                    enabled = state.isRunning || state.isBusy,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = MaterialTheme.shapes.small,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = PaperRaised,
+                        contentColor = Oxblood,
+                    ),
+                    border = BorderStroke(1.dp, Oxblood),
+                ) {
+                    Text("Stop")
+                }
+            }
+
+            TextButton(
+                onClick = onInstallDependencies,
+                enabled = !state.isBusy && !state.isRunning,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.textButtonColors(contentColor = Oxblood),
+            ) {
+                Text(
+                    if (workspace.hasDependencies) {
+                        "Install or update npm packages"
+                    } else {
+                        "Check npm packages"
+                    },
+                )
+            }
+
+            if (state.logs.isNotEmpty()) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 16.dp),
+                    color = PaleStone,
+                )
+                Text(
+                    text = "RUNTIME LOG",
+                    color = MutedText,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    color = Charcoal,
+                    shape = MaterialTheme.shapes.small,
+                ) {
+                    Text(
+                        text = state.logs.takeLast(12).joinToString("\n") { line ->
+                            line.take(320)
+                        },
+                        modifier = Modifier.padding(14.dp),
+                        color = WarmPaper,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 10.sp,
+                        lineHeight = 15.sp,
+                    )
                 }
             }
         }

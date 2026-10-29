@@ -17,6 +17,9 @@ import androidx.compose.runtime.getValue
 import top.linkora.mobile.auth.LinkoraAuthViewModel
 import top.linkora.mobile.connector.TunnelConnectorService
 import top.linkora.mobile.connector.TunnelConnectorStatus
+import top.linkora.mobile.node.NodeRuntimeViewModel
+import top.linkora.mobile.project.ProjectKind
+import top.linkora.mobile.project.ProjectWorkspaceState
 import top.linkora.mobile.project.ProjectWorkspaceViewModel
 import top.linkora.mobile.publish.PublishViewModel
 import top.linkora.mobile.ui.LinkoraApp
@@ -26,6 +29,7 @@ class MainActivity : ComponentActivity() {
     private val authViewModel: LinkoraAuthViewModel by viewModels()
     private val projectViewModel: ProjectWorkspaceViewModel by viewModels()
     private val publishViewModel: PublishViewModel by viewModels()
+    private val nodeRuntimeViewModel: NodeRuntimeViewModel by viewModels()
     private val projectFolderLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) { result ->
@@ -39,6 +43,12 @@ class MainActivity : ComponentActivity() {
                 contentResolver.takePersistableUriPermission(uri, grantedFlags)
             }
         }
+        val activeWorkspace =
+            (projectViewModel.uiState.value as? ProjectWorkspaceState.Ready)?.workspace
+        if (activeWorkspace?.kind == ProjectKind.Node) {
+            nodeRuntimeViewModel.stop()
+        }
+        TunnelConnectorService.stop(this)
         projectViewModel.selectProjectFolder(uri)
     }
 
@@ -51,6 +61,7 @@ class MainActivity : ComponentActivity() {
             val projectState by projectViewModel.uiState.collectAsState()
             val publishState by publishViewModel.uiState.collectAsState()
             val connectorState by TunnelConnectorStatus.state.collectAsState()
+            val nodeRuntimeState by nodeRuntimeViewModel.uiState.collectAsState()
 
             LaunchedEffect(authViewModel) {
                 authViewModel.browserRequests.collect(::openWebSignIn)
@@ -62,16 +73,30 @@ class MainActivity : ComponentActivity() {
                     projectState = projectState,
                     publishState = publishState,
                     connectorState = connectorState,
+                    nodeRuntimeState = nodeRuntimeState,
                     onStartSignIn = authViewModel::startSignIn,
                     onReopenBrowser = authViewModel::reopenBrowser,
                     onCancelSignIn = authViewModel::cancelSignIn,
                     onSignOut = authViewModel::signOut,
-                    onRetryProject = projectViewModel::prepareStarterProject,
+                    onRetryProject = projectViewModel::restoreProject,
+                    onPrepareProject = { projectId ->
+                        val activeWorkspace =
+                            (projectViewModel.uiState.value as? ProjectWorkspaceState.Ready)?.workspace
+                        if (activeWorkspace?.kind == ProjectKind.Node) {
+                            nodeRuntimeViewModel.stop()
+                        }
+                        TunnelConnectorService.stop(this)
+                        projectViewModel.prepareProject(projectId)
+                    },
                     onLoadPublish = publishViewModel::load,
                     onClaimHostname = publishViewModel::claim,
                     onConnectHostname = publishViewModel::connect,
                     onOpenFiles = ::chooseProjectFolder,
                     onStopConnector = { TunnelConnectorService.stop(this) },
+                    onStartNode = nodeRuntimeViewModel::start,
+                    onRestartNode = nodeRuntimeViewModel::restart,
+                    onStopNode = nodeRuntimeViewModel::stop,
+                    onInstallNodeDependencies = nodeRuntimeViewModel::installDependencies,
                 )
             }
         }
@@ -88,7 +113,7 @@ class MainActivity : ComponentActivity() {
     private fun chooseProjectFolder() {
         val folderUri = DocumentsContract.buildDocumentUri(
             "com.android.externalstorage.documents",
-            "primary:Download/LinkoraProjects/linkora-starter",
+            "primary:Download/LinkoraProjects",
         )
         projectFolderLauncher.launch(
             Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {

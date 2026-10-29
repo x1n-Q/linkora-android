@@ -17,19 +17,35 @@ class ProjectWorkspaceViewModel(application: Application) : AndroidViewModel(app
     val uiState = _uiState.asStateFlow()
 
     init {
-        prepareStarterProject()
+        restoreProject()
     }
 
-    fun prepareStarterProject() {
+    fun restoreProject() {
         _uiState.value = ProjectWorkspaceState.Preparing
         viewModelScope.launch {
             _uiState.value = try {
                 ProjectWorkspaceState.Ready(
-                    withContext(Dispatchers.IO) { manager.ensureStarterProject() },
+                    withContext(Dispatchers.IO) { manager.restoreProject() },
                 )
             } catch (error: Exception) {
                 ProjectWorkspaceState.Error(
                     error.message ?: "The starter project could not be prepared.",
+                )
+            }
+        }
+    }
+
+    fun prepareProject(projectId: String) {
+        val kind = ProjectKind.fromId(projectId)
+        _uiState.value = ProjectWorkspaceState.Preparing
+        viewModelScope.launch {
+            _uiState.value = try {
+                ProjectWorkspaceState.Ready(
+                    withContext(Dispatchers.IO) { manager.prepareProject(kind) },
+                )
+            } catch (error: Exception) {
+                ProjectWorkspaceState.Error(
+                    error.message ?: "The ${kind.id} starter project could not be prepared.",
                 )
             }
         }

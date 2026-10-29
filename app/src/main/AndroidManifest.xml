@@ -32,6 +32,14 @@
                 android:value="Serves a user-selected local web project while the user keeps it active." />
         </service>
         <service
+            android:name=".node.NodeRuntimeService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Runs a user-selected Node.js project locally on this phone." />
+        </service>
+        <service
             android:name=".connector.TunnelConnectorService"
             android:exported="false"
             android:foregroundServiceType="specialUse"

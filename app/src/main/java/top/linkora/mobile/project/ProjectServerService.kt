@@ -74,5 +74,9 @@ class ProjectServerService : Service() {
                 Intent(context, ProjectServerService::class.java),
             )
         }
+
+        fun stop(context: Context) {
+            context.stopService(Intent(context, ProjectServerService::class.java))
+        }
     }
 }
