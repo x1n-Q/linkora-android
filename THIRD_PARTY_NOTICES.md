@@ -1,5 +1,8 @@
 # Third-party notices
 
+Linkora for Android is distributed under the MIT License. The application also
+contains or depends on the following free and open source software.
+
 ## cloudflared
 
 Linkora for Android includes `cloudflared` 2026.10.4, compiled from the
@@ -45,3 +48,13 @@ installation is requested.
 - Copyright: npm, Inc. and contributors
 - License: Artistic License 2.0 and bundled dependency licenses
 - Bundled license: `app/src/main/assets/licenses/npm-LICENSE.txt`
+
+## Application libraries
+
+The Android application also uses these libraries from its Gradle dependencies:
+
+| Component | Version | License | Source |
+| --- | --- | --- | --- |
+| NanoHTTPD | 2.3.1 | BSD-3-Clause | https://github.com/NanoHttpd/nanohttpd |
+| AndroidX | See Gradle build files | Apache-2.0 | https://android.googlesource.com/platform/frameworks/support |
+| Kotlin coroutines | 1.9.0 | Apache-2.0 | https://github.com/Kotlin/kotlinx.coroutines |
