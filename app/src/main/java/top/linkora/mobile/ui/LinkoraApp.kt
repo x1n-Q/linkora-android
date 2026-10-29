@@ -237,13 +237,13 @@ private fun LinkoraHeader() {
         modifier = Modifier
             .fillMaxWidth()
             .windowInsetsPadding(WindowInsets.statusBars)
-            .padding(horizontal = 20.dp, vertical = 12.dp),
+            .padding(horizontal = 20.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Image(
             painter = painterResource(R.drawable.ic_linkora_wordmark),
             contentDescription = "Linkora",
-            modifier = Modifier.size(width = 137.dp, height = 40.dp),
+            modifier = Modifier.size(width = 103.dp, height = 30.dp),
         )
         Spacer(modifier = Modifier.weight(1f))
         Surface(
