@@ -4,22 +4,79 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#F3F0E7" />
-    <title>Linkora Node Starter</title>
+    <meta name="description" content="A working Node.js sample hosted on Android by Linkora." />
+    <title>Linkora Node Sample</title>
     <link rel="stylesheet" href="/styles.css" />
+    <script src="/app.js" defer></script>
   </head>
   <body>
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="Linkora Node Sample home">
+        <img src="/linkora-mark.svg" alt="" width="34" height="46" />
+        <span><strong>linkora</strong><small>NODE SAMPLE</small></span>
+      </a>
+      <span class="server-state"><i aria-hidden="true"></i> Server online</span>
+    </header>
+
     <main>
-      <p class="label">LINKORA / NODE.JS</p>
-      <h1>Your phone is serving a real Node.js project.</h1>
-      <p class="summary">
-        Edit this folder, restart the runtime in Linkora, and publish it with your
-        Linkora hostname.
-      </p>
-      <dl>
-        <div><dt>Runtime</dt><dd>Node.js 24 LTS</dd></div>
-        <div><dt>Port</dt><dd>8787</dd></div>
-        <div><dt>Host</dt><dd>127.0.0.1</dd></div>
-      </dl>
+      <section class="intro" aria-labelledby="page-title">
+        <p class="eyebrow">RUNNING ON ANDROID</p>
+        <h1 id="page-title">Linkora Node Sample</h1>
+        <p class="lede">
+          A working website and JSON API served by Node.js directly from your phone.
+          Add a message below to prove that the browser and server are communicating.
+        </p>
+        <div class="intro-actions">
+          <button id="test-api" type="button">Test status API</button>
+          <code>GET /api/status</code>
+        </div>
+      </section>
+
+      <section class="metrics" aria-label="Server metrics">
+        <div><span>Runtime</span><strong id="runtime">Checking...</strong></div>
+        <div><span>Platform</span><strong id="platform">Checking...</strong></div>
+        <div><span>Uptime</span><strong id="uptime">Checking...</strong></div>
+        <div><span>Requests</span><strong id="requests">0</strong></div>
+      </section>
+
+      <section class="workspace">
+        <div class="message-tool">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">LIVE API</p>
+              <h2>Message board</h2>
+            </div>
+            <code>POST /api/messages</code>
+          </div>
+
+          <form id="message-form">
+            <label for="message">New message</label>
+            <div class="form-row">
+              <input id="message" name="message" maxlength="140" placeholder="Write something from this browser" required />
+              <button type="submit">Send</button>
+            </div>
+            <p id="form-status" class="form-status" aria-live="polite"></p>
+          </form>
+
+          <ul id="message-list" class="message-list" aria-live="polite"></ul>
+        </div>
+
+        <aside class="response-tool" aria-labelledby="response-title">
+          <div class="section-heading">
+            <div>
+              <p class="eyebrow">RESPONSE</p>
+              <h2 id="response-title">Latest API result</h2>
+            </div>
+          </div>
+          <pre id="api-output">Waiting for a request...</pre>
+          <p class="hint">Edit <code>server.js</code> or files in <code>public/</code>, then restart the project in Linkora.</p>
+        </aside>
+      </section>
     </main>
+
+    <footer>
+      <span>Hosted locally by Linkora Android</span>
+      <a href="/api/hello?name=Linkora">Open hello endpoint</a>
+    </footer>
   </body>
 </html>
