@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -41,7 +42,6 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -74,11 +74,16 @@ import top.linkora.mobile.project.ProjectWorkspaceState
 import top.linkora.mobile.publish.ManagedHostname
 import top.linkora.mobile.publish.PublishUiState
 import top.linkora.mobile.ui.theme.Charcoal
+import top.linkora.mobile.ui.theme.ActionSurface
+import top.linkora.mobile.ui.theme.DisabledSurface
+import top.linkora.mobile.ui.theme.DisabledText
 import top.linkora.mobile.ui.theme.DustyOlive
 import top.linkora.mobile.ui.theme.MutedText
 import top.linkora.mobile.ui.theme.Oxblood
+import top.linkora.mobile.ui.theme.OxbloodSoft
 import top.linkora.mobile.ui.theme.PaleStone
 import top.linkora.mobile.ui.theme.PaperRaised
+import top.linkora.mobile.ui.theme.StrongBorder
 import top.linkora.mobile.ui.theme.WarmPaper
 
 private enum class OnboardingStep {
@@ -87,6 +92,13 @@ private enum class OnboardingStep {
     Workspace,
     Preview,
     Publish,
+}
+
+private enum class ActionStyle {
+    Primary,
+    Secondary,
+    Neutral,
+    Destructive,
 }
 
 @Composable
@@ -251,7 +263,7 @@ private fun LinkoraHeader() {
         Surface(
             color = PaperRaised,
             shape = MaterialTheme.shapes.small,
-            border = BorderStroke(1.dp, PaleStone),
+            border = BorderStroke(1.dp, StrongBorder),
         ) {
             Text(
                 text = "EARLY BUILD",
@@ -311,22 +323,12 @@ private fun ProjectTypeScreen(
                     .fillMaxWidth()
                     .windowInsetsPadding(WindowInsets.navigationBars),
             ) {
-                Button(
+                ActionButton(
+                    label = "Continue",
                     onClick = onContinue,
                     enabled = selectedProjectId != null,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    shape = MaterialTheme.shapes.medium,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Oxblood,
-                        contentColor = WarmPaper,
-                        disabledContainerColor = PaleStone,
-                        disabledContentColor = MutedText,
-                    ),
-                ) {
-                    Text("Continue", style = MaterialTheme.typography.labelLarge)
-                }
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 Text(
                     text = "Node.js is bundled with Linkora. The app does not require Termux or download native runtimes.",
                     modifier = Modifier.padding(top = 12.dp),
@@ -399,7 +401,7 @@ private fun ProjectTemplateCard(
                 role = Role.RadioButton,
             ),
         shape = MaterialTheme.shapes.medium,
-        border = BorderStroke(1.dp, if (selected) Oxblood else PaleStone),
+        border = BorderStroke(1.dp, if (selected) Oxblood else StrongBorder),
         colors = CardDefaults.cardColors(
             containerColor = if (selected) Color(0xFFF8ECEC) else PaperRaised,
         ),
@@ -412,7 +414,7 @@ private fun ProjectTemplateCard(
             Surface(
                 modifier = Modifier.size(44.dp),
                 shape = MaterialTheme.shapes.small,
-                border = BorderStroke(1.dp, if (selected) Oxblood else PaleStone),
+                border = BorderStroke(1.dp, if (selected) Oxblood else StrongBorder),
                 color = WarmPaper,
             ) {
                 Column(
@@ -459,7 +461,7 @@ private fun ProjectTemplateCard(
                 onClick = null,
                 colors = RadioButtonDefaults.colors(
                     selectedColor = Oxblood,
-                    unselectedColor = PaleStone,
+                    unselectedColor = StrongBorder,
                 ),
             )
         }
@@ -508,7 +510,7 @@ private fun WebSignInScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.medium,
-                border = BorderStroke(1.dp, PaleStone),
+                border = BorderStroke(1.dp, StrongBorder),
                 colors = CardDefaults.cardColors(containerColor = PaperRaised),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             ) {
@@ -554,7 +556,18 @@ private fun WebSignInScreen(
                     .fillMaxWidth()
                     .windowInsetsPadding(WindowInsets.navigationBars),
             ) {
-                Button(
+                ActionButton(
+                    label = when (authState) {
+                        AuthUiState.Restoring -> "Checking saved session..."
+                        AuthUiState.Starting -> "Preparing secure sign-in..."
+                        is AuthUiState.AwaitingApproval -> "Open approval page"
+                        is AuthUiState.SignedIn -> when (projectState) {
+                            ProjectWorkspaceState.Preparing -> "Preparing sample project..."
+                            is ProjectWorkspaceState.Error -> "Retry project setup"
+                            is ProjectWorkspaceState.Ready -> "Open local project"
+                        }
+                        else -> "Continue in browser"
+                    },
                     onClick = when {
                         authState is AuthUiState.SignedIn &&
                             projectState is ProjectWorkspaceState.Ready -> onOpenWorkspace
@@ -567,55 +580,36 @@ private fun WebSignInScreen(
                         authState !is AuthUiState.Restoring &&
                         !(authState is AuthUiState.SignedIn &&
                             projectState is ProjectWorkspaceState.Preparing),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    shape = MaterialTheme.shapes.medium,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Oxblood,
-                        contentColor = WarmPaper,
-                    ),
-                ) {
-                    Text(
-                        text = when (authState) {
-                            AuthUiState.Restoring -> "Checking saved session..."
-                            AuthUiState.Starting -> "Preparing secure sign-in..."
-                            is AuthUiState.AwaitingApproval -> "Open approval page"
-                            is AuthUiState.SignedIn -> when (projectState) {
-                                ProjectWorkspaceState.Preparing -> "Preparing sample project..."
-                                is ProjectWorkspaceState.Error -> "Retry project setup"
-                                is ProjectWorkspaceState.Ready -> "Open local project"
-                            }
-                            else -> "Continue in browser"
-                        },
-                        style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (authState is AuthUiState.AwaitingApproval) {
+                    ActionButton(
+                        label = "Cancel sign-in",
+                        onClick = onCancelSignIn,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 10.dp),
+                        style = ActionStyle.Destructive,
                     )
                 }
-                if (authState is AuthUiState.AwaitingApproval) {
-                    TextButton(
-                        onClick = onCancelSignIn,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.textButtonColors(contentColor = Oxblood),
-                    ) {
-                        Text("Cancel sign-in", style = MaterialTheme.typography.labelLarge)
-                    }
-                }
                 if (authState is AuthUiState.SignedIn) {
-                    TextButton(
+                    ActionButton(
+                        label = "Sign out",
                         onClick = onSignOut,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.textButtonColors(contentColor = Oxblood),
-                    ) {
-                        Text("Sign out", style = MaterialTheme.typography.labelLarge)
-                    }
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 10.dp),
+                        style = ActionStyle.Destructive,
+                    )
                 }
-                TextButton(
+                ActionButton(
+                    label = "Change project type",
                     onClick = onChangeProject,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.textButtonColors(contentColor = Oxblood),
-                ) {
-                    Text("Change project type", style = MaterialTheme.typography.labelLarge)
-                }
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp),
+                    style = ActionStyle.Neutral,
+                )
             }
         }
     }
@@ -654,23 +648,22 @@ private fun WorkspaceScreen(
                 )
             },
             confirmButton = {
-                TextButton(
+                ActionButton(
+                    label = "Try anyway",
                     onClick = {
                         showNativeModuleWarning = false
                         onInstallNodeDependencies()
                     },
-                    colors = ButtonDefaults.textButtonColors(contentColor = Oxblood),
-                ) {
-                    Text("Try anyway")
-                }
+                    compact = true,
+                )
             },
             dismissButton = {
-                TextButton(
+                ActionButton(
+                    label = "Cancel",
                     onClick = { showNativeModuleWarning = false },
-                    colors = ButtonDefaults.textButtonColors(contentColor = MutedText),
-                ) {
-                    Text("Cancel")
-                }
+                    style = ActionStyle.Neutral,
+                    compact = true,
+                )
             },
         )
     }
@@ -724,7 +717,7 @@ private fun WorkspaceScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.medium,
-                border = BorderStroke(1.dp, PaleStone),
+                border = BorderStroke(1.dp, StrongBorder),
                 colors = CardDefaults.cardColors(containerColor = PaperRaised),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             ) {
@@ -810,7 +803,7 @@ private fun WorkspaceScreen(
                         modifier = Modifier.fillMaxWidth(),
                         color = PaperRaised,
                         shape = MaterialTheme.shapes.small,
-                        border = BorderStroke(1.dp, PaleStone),
+                        border = BorderStroke(1.dp, StrongBorder),
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 13.dp),
@@ -841,35 +834,20 @@ private fun WorkspaceScreen(
                     .fillMaxWidth()
                     .windowInsetsPadding(WindowInsets.navigationBars),
             ) {
-                Button(
+                ActionButton(
+                    label = "Assign Linkora URL",
                     onClick = onAssignUrl,
                     enabled = originReady,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    shape = MaterialTheme.shapes.medium,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Oxblood,
-                        contentColor = WarmPaper,
-                    ),
-                ) {
-                    Text("Assign Linkora URL", style = MaterialTheme.typography.labelLarge)
-                }
-                Button(
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                ActionButton(
+                    label = "Choose project folder",
                     onClick = onOpenFiles,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 10.dp)
-                        .height(52.dp),
-                    shape = MaterialTheme.shapes.medium,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = PaperRaised,
-                        contentColor = Oxblood,
-                    ),
-                    border = BorderStroke(1.dp, Oxblood),
-                ) {
-                    Text("Choose project folder", style = MaterialTheme.typography.labelLarge)
-                }
+                        .padding(top = 10.dp),
+                    style = ActionStyle.Secondary,
+                )
                 Text(
                     text = if (workspace.kind == ProjectKind.Node) {
                         "Select a folder with package.json or a supported JavaScript entry file. " +
@@ -881,17 +859,19 @@ private fun WorkspaceScreen(
                     color = MutedText,
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                TextButton(
+                ActionButton(
+                    label = if (originReady) {
+                        "Preview local server"
+                    } else {
+                        "Start Node.js to preview"
+                    },
                     onClick = onPreview,
                     enabled = originReady,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.textButtonColors(contentColor = Oxblood),
-                ) {
-                    Text(
-                        if (originReady) "Preview local server" else "Start Node.js to preview",
-                        style = MaterialTheme.typography.labelLarge,
-                    )
-                }
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp),
+                    style = ActionStyle.Neutral,
+                )
                 Text(
                     text = "Connected as $accountEmail",
                     modifier = Modifier
@@ -900,20 +880,22 @@ private fun WorkspaceScreen(
                     color = MutedText,
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                TextButton(
+                ActionButton(
+                    label = "Change project type",
                     onClick = onChangeProject,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.textButtonColors(contentColor = Oxblood),
-                ) {
-                    Text("Change project type", style = MaterialTheme.typography.labelLarge)
-                }
-                TextButton(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp),
+                    style = ActionStyle.Neutral,
+                )
+                ActionButton(
+                    label = "Sign out",
                     onClick = onSignOut,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.textButtonColors(contentColor = Oxblood),
-                ) {
-                    Text("Sign out", style = MaterialTheme.typography.labelLarge)
-                }
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp),
+                    style = ActionStyle.Destructive,
+                )
             }
         }
     }
@@ -933,7 +915,7 @@ private fun NodeRuntimePanel(
         modifier = Modifier.fillMaxWidth(),
         color = PaperRaised,
         shape = MaterialTheme.shapes.medium,
-        border = BorderStroke(1.dp, if (isError) Oxblood else PaleStone),
+        border = BorderStroke(1.dp, if (isError) Oxblood else StrongBorder),
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
             SectionLabel("NODE.JS RUNTIME")
@@ -983,51 +965,36 @@ private fun NodeRuntimePanel(
                     .padding(top = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Button(
+                ActionButton(
+                    label = if (state.isRunning) "Restart" else "Start",
                     onClick = if (state.isRunning) onRestart else onStart,
                     enabled = !state.isBusy,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp),
-                    shape = MaterialTheme.shapes.small,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Oxblood,
-                        contentColor = WarmPaper,
-                    ),
-                ) {
-                    Text(if (state.isRunning) "Restart" else "Start")
-                }
-                Button(
+                    modifier = Modifier.weight(1f),
+                    compact = true,
+                )
+                ActionButton(
+                    label = "Stop",
                     onClick = onStop,
                     enabled = state.isRunning || state.isBusy,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp),
-                    shape = MaterialTheme.shapes.small,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = PaperRaised,
-                        contentColor = Oxblood,
-                    ),
-                    border = BorderStroke(1.dp, Oxblood),
-                ) {
-                    Text("Stop")
-                }
-            }
-
-            TextButton(
-                onClick = onInstallDependencies,
-                enabled = !state.isBusy && !state.isRunning,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.textButtonColors(contentColor = Oxblood),
-            ) {
-                Text(
-                    if (workspace.hasDependencies) {
-                        "Install or update npm packages"
-                    } else {
-                        "Check npm packages"
-                    },
+                    modifier = Modifier.weight(1f),
+                    style = ActionStyle.Destructive,
+                    compact = true,
                 )
             }
+
+            ActionButton(
+                label = if (workspace.hasDependencies) {
+                    "Install or update npm packages"
+                } else {
+                    "Check npm packages"
+                },
+                onClick = onInstallDependencies,
+                enabled = !state.isBusy && !state.isRunning,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp),
+                style = ActionStyle.Neutral,
+            )
 
             if (state.logs.isNotEmpty()) {
                 HorizontalDivider(
@@ -1089,12 +1056,12 @@ private fun ProjectPreviewScreen(
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(
+            ActionButton(
+                label = "Back",
                 onClick = onBack,
-                colors = ButtonDefaults.textButtonColors(contentColor = Oxblood),
-            ) {
-                Text("Back", style = MaterialTheme.typography.labelLarge)
-            }
+                style = ActionStyle.Neutral,
+                compact = true,
+            )
             Text(
                 text = workspace.name,
                 modifier = Modifier
@@ -1102,12 +1069,12 @@ private fun ProjectPreviewScreen(
                     .padding(horizontal = 8.dp),
                 style = MaterialTheme.typography.titleMedium,
             )
-            TextButton(
+            ActionButton(
+                label = "Reload",
                 onClick = { webView?.reload() },
-                colors = ButtonDefaults.textButtonColors(contentColor = Oxblood),
-            ) {
-                Text("Reload", style = MaterialTheme.typography.labelLarge)
-            }
+                style = ActionStyle.Secondary,
+                compact = true,
+            )
         }
         HorizontalDivider(color = PaleStone)
         AndroidView(
@@ -1170,12 +1137,12 @@ private fun PublishScreen(
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         item {
-            TextButton(
+            ActionButton(
+                label = "Back to project",
                 onClick = onBack,
-                colors = ButtonDefaults.textButtonColors(contentColor = Oxblood),
-            ) {
-                Text("Back to project", style = MaterialTheme.typography.labelLarge)
-            }
+                style = ActionStyle.Neutral,
+                compact = true,
+            )
             SectionLabel("LINKORA PUBLISHING")
             Text(
                 text = "Assign a public URL.",
@@ -1201,20 +1168,13 @@ private fun PublishScreen(
 
             is PublishUiState.Error -> item {
                 StatusPanel("PUBLISHING NEEDS ATTENTION", state.message, error = true)
-                Button(
+                ActionButton(
+                    label = "Try again",
                     onClick = onRetry,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 12.dp)
-                        .height(52.dp),
-                    shape = MaterialTheme.shapes.medium,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Oxblood,
-                        contentColor = WarmPaper,
-                    ),
-                ) {
-                    Text("Try again", style = MaterialTheme.typography.labelLarge)
-                }
+                        .padding(top = 12.dp),
+                )
             }
 
             is PublishUiState.Ready -> item {
@@ -1261,7 +1221,7 @@ private fun ReadyPublishPanel(
                     modifier = Modifier.fillMaxWidth(),
                     color = PaperRaised,
                     shape = MaterialTheme.shapes.small,
-                    border = BorderStroke(1.dp, PaleStone),
+                    border = BorderStroke(1.dp, StrongBorder),
                 ) {
                     Row(
                         modifier = Modifier.padding(14.dp),
@@ -1282,17 +1242,12 @@ private fun ReadyPublishPanel(
                                 fontSize = 9.sp,
                             )
                         }
-                        Button(
+                        ActionButton(
+                            label = "Connect",
                             onClick = { onConnectHostname(hostname) },
                             enabled = hostname.tunnelId != null,
-                            shape = MaterialTheme.shapes.small,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Oxblood,
-                                contentColor = WarmPaper,
-                            ),
-                        ) {
-                            Text("Use")
-                        }
+                            compact = true,
+                        )
                     }
                 }
             }
@@ -1313,18 +1268,12 @@ private fun ReadyPublishPanel(
             fontWeight = FontWeight.Bold,
         )
         Box(modifier = Modifier.fillMaxWidth()) {
-            Button(
+            ActionButton(
+                label = selectedPool?.domain ?: "Choose a domain",
                 onClick = { poolMenuOpen = true },
                 modifier = Modifier.fillMaxWidth(),
-                shape = MaterialTheme.shapes.small,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = PaperRaised,
-                    contentColor = Charcoal,
-                ),
-                border = BorderStroke(1.dp, PaleStone),
-            ) {
-                Text(selectedPool?.domain ?: "Choose a domain")
-            }
+                style = ActionStyle.Neutral,
+            )
             DropdownMenu(
                 expanded = poolMenuOpen,
                 onDismissRequest = { poolMenuOpen = false },
@@ -1352,20 +1301,12 @@ private fun ReadyPublishPanel(
             },
             singleLine = true,
         )
-        Button(
+        ActionButton(
+            label = "Reserve and connect",
             onClick = { selectedPoolId?.let { onClaimHostname(label, it) } },
             enabled = label.isNotBlank() && selectedPoolId != null,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp),
-            shape = MaterialTheme.shapes.medium,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Oxblood,
-                contentColor = WarmPaper,
-            ),
-        ) {
-            Text("Reserve and connect", style = MaterialTheme.typography.labelLarge)
-        }
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 
@@ -1433,7 +1374,8 @@ private fun PublishedPanel(
                 style = MaterialTheme.typography.bodyMedium,
             )
             if (matchingState is TunnelConnectorState.Running) {
-                Button(
+                ActionButton(
+                    label = "Open website",
                     onClick = {
                         context.startActivity(
                             Intent(Intent.ACTION_VIEW, Uri.parse("https://${state.hostname}")),
@@ -1441,25 +1383,18 @@ private fun PublishedPanel(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 18.dp)
-                        .height(52.dp),
-                    shape = MaterialTheme.shapes.medium,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Oxblood,
-                        contentColor = WarmPaper,
-                    ),
-                ) {
-                    Text("Open website", style = MaterialTheme.typography.labelLarge)
-                }
+                        .padding(top = 18.dp),
+                )
             }
             if (canStop) {
-                TextButton(
+                ActionButton(
+                    label = "Stop publishing",
                     onClick = onStopConnector,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.textButtonColors(contentColor = Oxblood),
-                ) {
-                    Text("Stop publishing", style = MaterialTheme.typography.labelLarge)
-                }
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp),
+                    style = ActionStyle.Destructive,
+                )
             }
         }
     }
@@ -1475,7 +1410,7 @@ private fun StatusPanel(
         modifier = Modifier.fillMaxWidth(),
         color = PaperRaised,
         shape = MaterialTheme.shapes.small,
-        border = BorderStroke(1.dp, if (error) Oxblood else PaleStone),
+        border = BorderStroke(1.dp, if (error) Oxblood else StrongBorder),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             SectionLabel(label)
@@ -1497,7 +1432,7 @@ private fun AuthenticationStatusCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
-        border = BorderStroke(1.dp, PaleStone),
+        border = BorderStroke(1.dp, StrongBorder),
         colors = CardDefaults.cardColors(containerColor = PaperRaised),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
@@ -1549,13 +1484,14 @@ private fun AuthenticationStatusCard(
                         color = MutedText,
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                    TextButton(
+                    ActionButton(
+                        label = "Open browser again",
                         onClick = onReopenBrowser,
-                        modifier = Modifier.padding(top = 4.dp),
-                        colors = ButtonDefaults.textButtonColors(contentColor = Oxblood),
-                    ) {
-                        Text("Open browser again")
-                    }
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 14.dp),
+                        style = ActionStyle.Secondary,
+                    )
                 }
 
                 is AuthUiState.SignedIn -> {
@@ -1584,6 +1520,66 @@ private fun AuthenticationStatusCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ActionButton(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    style: ActionStyle = ActionStyle.Primary,
+    compact: Boolean = false,
+) {
+    val colors = when (style) {
+        ActionStyle.Primary -> ButtonDefaults.buttonColors(
+            containerColor = Oxblood,
+            contentColor = WarmPaper,
+            disabledContainerColor = DisabledSurface,
+            disabledContentColor = DisabledText,
+        )
+        ActionStyle.Secondary -> ButtonDefaults.buttonColors(
+            containerColor = PaperRaised,
+            contentColor = Oxblood,
+            disabledContainerColor = DisabledSurface,
+            disabledContentColor = DisabledText,
+        )
+        ActionStyle.Neutral -> ButtonDefaults.buttonColors(
+            containerColor = ActionSurface,
+            contentColor = Charcoal,
+            disabledContainerColor = DisabledSurface,
+            disabledContentColor = DisabledText,
+        )
+        ActionStyle.Destructive -> ButtonDefaults.buttonColors(
+            containerColor = OxbloodSoft,
+            contentColor = Oxblood,
+            disabledContainerColor = DisabledSurface,
+            disabledContentColor = DisabledText,
+        )
+    }
+    val border = when (style) {
+        ActionStyle.Primary -> null
+        ActionStyle.Secondary, ActionStyle.Destructive -> BorderStroke(
+            1.dp,
+            if (enabled) Oxblood else StrongBorder,
+        )
+        ActionStyle.Neutral -> BorderStroke(1.dp, StrongBorder)
+    }
+
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier.heightIn(min = if (compact) 44.dp else 50.dp),
+        shape = MaterialTheme.shapes.small,
+        colors = colors,
+        border = border,
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            horizontal = if (compact) 14.dp else 18.dp,
+            vertical = 10.dp,
+        ),
+    ) {
+        Text(label, style = MaterialTheme.typography.labelLarge)
     }
 }
 

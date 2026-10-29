@@ -20,7 +20,8 @@ private val LinkoraColorScheme = lightColorScheme(
     onSurface = Charcoal,
     surfaceVariant = ColorTokens.PaperMuted,
     onSurfaceVariant = MutedText,
-    outline = PaleStone,
+    outline = StrongBorder,
+    outlineVariant = PaleStone,
 )
 
 private object ColorTokens {
