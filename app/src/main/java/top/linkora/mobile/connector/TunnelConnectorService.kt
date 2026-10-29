@@ -25,6 +25,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import top.linkora.mobile.MainActivity
 import top.linkora.mobile.R
+import top.linkora.mobile.node.NodeRuntimeStatus
+import top.linkora.mobile.project.ProjectKind
 import top.linkora.mobile.project.ProjectServerService
 import top.linkora.mobile.project.ProjectWorkspaceManager
 
@@ -80,7 +82,6 @@ class TunnelConnectorService : Service() {
         connectorProcess?.destroy()
         TunnelConnectorStatus.update(TunnelConnectorState.Starting(hostname))
         startForeground(NOTIFICATION_ID, buildNotification(hostname, "Connecting"))
-        ProjectServerService.start(applicationContext)
 
         connectorJob = scope.launch {
             runConnector(hostname, token)
@@ -89,6 +90,7 @@ class TunnelConnectorService : Service() {
 
     private suspend fun runConnector(hostname: String, token: String) {
         try {
+            ensureLocalOrigin()
             val executable = CloudflaredBinary.resolve(applicationContext)
             waitForLocalServer()
             var attempt = 0
@@ -141,6 +143,15 @@ class TunnelConnectorService : Service() {
                 ),
             )
             updateNotification(hostname, "Connection failed")
+        }
+    }
+
+    private fun ensureLocalOrigin() {
+        when (ProjectWorkspaceManager(applicationContext).activeKind()) {
+            ProjectKind.Static -> ProjectServerService.start(applicationContext)
+            ProjectKind.Node -> check(NodeRuntimeStatus.state.value.isRunning) {
+                "Start the Node.js project before publishing it."
+            }
         }
     }
 
@@ -253,9 +264,8 @@ class TunnelConnectorService : Service() {
         }
 
         fun stop(context: Context) {
-            context.startService(
-                Intent(context, TunnelConnectorService::class.java).setAction(ACTION_STOP),
-            )
+            TunnelConnectorStatus.update(TunnelConnectorState.Stopped)
+            context.stopService(Intent(context, TunnelConnectorService::class.java))
         }
     }
 }
