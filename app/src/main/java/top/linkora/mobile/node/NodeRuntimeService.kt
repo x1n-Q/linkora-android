@@ -1,5 +1,6 @@
 package top.linkora.mobile.node
 
+import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -7,6 +8,9 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.os.IBinder
+import android.os.PowerManager
+import android.os.Process as AndroidProcess
+import android.os.SystemClock
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import java.io.File
@@ -32,8 +36,19 @@ import top.linkora.mobile.project.ProjectWorkspaceManager
 class NodeRuntimeService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var operationJob: Job? = null
+    private var monitorJob: Job? = null
     private var childProcess: Process? = null
+    private var runtimeStartedAtMs: Long? = null
+    private var wakeLock: PowerManager.WakeLock? = null
     private var stoppedByUser = false
+    private val preferences by lazy {
+        getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+    }
+    private var runtimeRequested: Boolean
+        get() = preferences.getBoolean(KEY_RUNTIME_REQUESTED, false)
+        set(value) {
+            preferences.edit().putBoolean(KEY_RUNTIME_REQUESTED, value).apply()
+        }
 
     override fun onCreate() {
         super.onCreate()
@@ -42,17 +57,29 @@ class NodeRuntimeService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_START, ACTION_RESTART -> startRuntime()
-            ACTION_INSTALL -> installDependencies()
-            ACTION_STOP -> stopRuntime()
+            ACTION_START, ACTION_RESTART -> {
+                runtimeRequested = true
+                startRuntime()
+            }
+            ACTION_INSTALL -> {
+                runtimeRequested = false
+                installDependencies()
+            }
+            ACTION_STOP -> {
+                runtimeRequested = false
+                stopRuntime()
+            }
+            null -> if (runtimeRequested) startRuntime() else stopSelf()
             else -> stopSelf()
         }
-        return START_NOT_STICKY
+        return if (runtimeRequested) START_STICKY else START_NOT_STICKY
     }
 
     override fun onDestroy() {
         operationJob?.cancel()
+        stopRuntimeMonitor()
         terminateChildProcess()
+        releaseWakeLock()
         operationJob = null
         scope.cancel()
         if (stoppedByUser) {
@@ -78,8 +105,10 @@ class NodeRuntimeService : Service() {
     private fun startRuntime() {
         stoppedByUser = false
         operationJob?.cancel()
+        stopRuntimeMonitor()
         terminateChildProcess()
         stopService(Intent(this, ProjectServerService::class.java))
+        acquireWakeLock()
         startForeground(NOTIFICATION_ID, buildNotification("Preparing project"))
 
         operationJob = scope.launch {
@@ -108,6 +137,7 @@ class NodeRuntimeService : Service() {
                     launchConfig.entryPoint,
                 )
                 childProcess = process
+                runtimeStartedAtMs = SystemClock.elapsedRealtime()
                 val logJob = launch {
                     readProcessOutput(process)
                 }
@@ -117,7 +147,7 @@ class NodeRuntimeService : Service() {
                     NodeRuntimePhase.Running,
                     "Running at ${ProjectWorkspaceManager.LOCAL_URL}",
                 )
-                updateNotification("Running at ${ProjectWorkspaceManager.LOCAL_URL}")
+                startRuntimeMonitor(process)
 
                 val exitCode = process.waitFor()
                 logJob.join()
@@ -129,6 +159,7 @@ class NodeRuntimeService : Service() {
                     "Node.js stopped with exit code $exitCode. Review the runtime log.",
                 )
                 updateNotification("Runtime stopped")
+                runtimeRequested = false
                 finishOperation()
             } catch (error: CancellationException) {
                 throw error
@@ -141,6 +172,7 @@ class NodeRuntimeService : Service() {
                     error.message ?: "Node.js could not start.",
                 )
                 updateNotification("Runtime failed")
+                runtimeRequested = false
                 finishOperation()
             }
         }
@@ -150,7 +182,9 @@ class NodeRuntimeService : Service() {
         stoppedByUser = true
         NodeRuntimeStatus.update(NodeRuntimePhase.Stopping, "Stopping Node.js...")
         operationJob?.cancel()
+        stopRuntimeMonitor()
         terminateChildProcess()
+        releaseWakeLock()
         operationJob = null
         TunnelConnectorService.stop(applicationContext)
         stopForeground(STOP_FOREGROUND_REMOVE)
@@ -160,6 +194,7 @@ class NodeRuntimeService : Service() {
     private fun installDependencies() {
         stoppedByUser = false
         operationJob?.cancel()
+        stopRuntimeMonitor()
         terminateChildProcess()
         TunnelConnectorService.stop(applicationContext)
         stopService(Intent(this, ProjectServerService::class.java))
@@ -220,8 +255,85 @@ class NodeRuntimeService : Service() {
     }
 
     private fun finishOperation() {
+        stopRuntimeMonitor()
+        releaseWakeLock()
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
+    }
+
+    private fun startRuntimeMonitor(process: Process) {
+        monitorJob?.cancel()
+        monitorJob = scope.launch {
+            while (process.isAlive) {
+                updateNotification(runtimeNotificationText())
+                delay(NOTIFICATION_REFRESH_MS)
+            }
+        }
+    }
+
+    private fun stopRuntimeMonitor() {
+        monitorJob?.cancel()
+        monitorJob = null
+        runtimeStartedAtMs = null
+    }
+
+    private fun runtimeNotificationText(): String {
+        val startedAt = runtimeStartedAtMs ?: SystemClock.elapsedRealtime()
+        val uptimeSeconds = ((SystemClock.elapsedRealtime() - startedAt) / 1_000L)
+            .coerceAtLeast(0L)
+        return "Uptime ${formatDuration(uptimeSeconds)} | RAM ${runtimeMemoryMb()} MB"
+    }
+
+    private fun runtimeMemoryMb(): Long {
+        val appPid = AndroidProcess.myPid()
+        val childPids = runCatching {
+            File("/proc/$appPid/task/$appPid/children")
+                .readText()
+                .trim()
+                .split(Regex("\\s+"))
+                .mapNotNull(String::toIntOrNull)
+        }.getOrDefault(emptyList())
+        val totalKb = (listOf(appPid) + childPids).sumOf(::residentMemoryKb)
+        return ((totalKb + 1_023L) / 1_024L).coerceAtLeast(1L)
+    }
+
+    private fun residentMemoryKb(processId: Int): Long = runCatching {
+        File("/proc/$processId/status").useLines { lines ->
+            lines.firstOrNull { it.startsWith("VmRSS:") }
+                ?.trim()
+                ?.split(Regex("\\s+"))
+                ?.getOrNull(1)
+                ?.toLongOrNull()
+                ?: 0L
+        }
+    }.getOrDefault(0L)
+
+    private fun formatDuration(totalSeconds: Long): String {
+        val days = totalSeconds / 86_400
+        val hours = totalSeconds % 86_400 / 3_600
+        val minutes = totalSeconds % 3_600 / 60
+        val seconds = totalSeconds % 60
+        return if (days > 0) {
+            "%dd %02d:%02d:%02d".format(days, hours, minutes, seconds)
+        } else {
+            "%02d:%02d:%02d".format(hours, minutes, seconds)
+        }
+    }
+
+    @SuppressLint("WakelockTimeout")
+    private fun acquireWakeLock() {
+        if (wakeLock?.isHeld == true) return
+        wakeLock = getSystemService(PowerManager::class.java)
+            .newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "$packageName:node-runtime")
+            .apply {
+                setReferenceCounted(false)
+                acquire()
+            }
+    }
+
+    private fun releaseWakeLock() {
+        wakeLock?.takeIf { it.isHeld }?.release()
+        wakeLock = null
     }
 
     private fun terminateChildProcess() {
@@ -373,10 +485,15 @@ class NodeRuntimeService : Service() {
     private fun buildNotification(status: String) =
         NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_linkora_mark)
-            .setContentTitle("Linkora Node.js")
+            .setContentTitle("Node.js project running")
             .setContentText(status)
+            .setSubText(ProjectWorkspaceManager.LOCAL_URL)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(status))
             .setOngoing(true)
             .setSilent(true)
+            .setOnlyAlertOnce(true)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .setContentIntent(
                 PendingIntent.getActivity(
                     this,
@@ -386,7 +503,7 @@ class NodeRuntimeService : Service() {
                 ),
             )
             .addAction(
-                0,
+                R.drawable.ic_linkora_mark,
                 "Stop",
                 PendingIntent.getService(
                     this,
@@ -404,6 +521,9 @@ class NodeRuntimeService : Service() {
         private const val ACTION_STOP = "top.linkora.mobile.node.STOP"
         private const val CHANNEL_ID = "linkora_node_runtime"
         private const val NOTIFICATION_ID = 8789
+        private const val PREFERENCES_NAME = "node_runtime_service"
+        private const val KEY_RUNTIME_REQUESTED = "runtime_requested"
+        private const val NOTIFICATION_REFRESH_MS = 5_000L
         private const val LOCAL_SERVER_ATTEMPTS = 60
         private const val LOCAL_SERVER_CONNECT_TIMEOUT_MS = 200
         private const val LOCAL_SERVER_RETRY_MS = 250L
