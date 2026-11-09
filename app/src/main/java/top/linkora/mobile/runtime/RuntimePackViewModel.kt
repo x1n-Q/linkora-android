@@ -12,6 +12,7 @@ import kotlinx.coroutines.withContext
 
 data class RuntimePackUiState(
     val node: RuntimePackInspection,
+    val php: RuntimePackInspection,
 )
 
 class RuntimePackViewModel(application: Application) : AndroidViewModel(application) {
@@ -21,6 +22,11 @@ class RuntimePackViewModel(application: Application) : AndroidViewModel(applicat
                 spec = RuntimePacks.Node,
                 state = RuntimePackState.Checking,
                 message = "Checking the Node.js Runtime Pack...",
+            ),
+            php = RuntimePackInspection(
+                spec = RuntimePacks.Php,
+                state = RuntimePackState.Checking,
+                message = "Checking the PHP Runtime Pack...",
             ),
         ),
     )
@@ -40,5 +46,6 @@ class RuntimePackViewModel(application: Application) : AndroidViewModel(applicat
 
     private fun readState() = RuntimePackUiState(
         node = RuntimePacks.inspectNode(getApplication()),
+        php = RuntimePacks.inspectPhp(getApplication()),
     )
 }

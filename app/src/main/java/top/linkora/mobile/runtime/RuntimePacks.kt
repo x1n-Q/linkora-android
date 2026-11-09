@@ -23,6 +23,23 @@ object RuntimePacks {
         ),
     )
 
+    val Php = RuntimePackSpec(
+        id = "php",
+        displayName = "PHP Runtime Pack",
+        packageName = "top.linkora.runtime.php",
+        protocolVersion = 1,
+        runtimeVersion = "8.4.27",
+        executableName = "libphp_runtime.so",
+        supportedAbis = setOf("arm64-v8a"),
+        nativeLibraryHashes = mapOf(
+            "libphp_runtime.so" to
+                "17d779851bb77c6a2f29efbf92d2d2911b373d8cb8c3e2263f9d3c2a11111776",
+        ),
+    )
+
     fun inspectNode(context: Context): RuntimePackInspection =
         RuntimePackManager(context).inspect(Node)
+
+    fun inspectPhp(context: Context): RuntimePackInspection =
+        RuntimePackManager(context).inspect(Php)
 }

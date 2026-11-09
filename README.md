@@ -8,6 +8,7 @@ Lightweight Android companion for Linkora, built with Kotlin and Jetpack Compose
 - Real Node.js workspaces selected through Android Files
 - Bundled ARM64 Node.js 24 LTS runtime and npm, with no Termux dependency
 - Verified headless Node.js Runtime Pack with a built-in migration fallback
+- Device-tested PHP 8.4 Runtime Pack with PDO SQLite and the built-in web server
 - In-app controls to install packages and start, restart, or stop Node.js projects
 - Editable starter files in `Download/LinkoraProjects/linkora-starter`
 - Persisted access to any selected folder containing `index.html`
@@ -49,7 +50,9 @@ project has separate persistent runtime storage, so generated databases,
 uploads, logs, and `node_modules` survive restarts without changing the source
 folder.
 The built-in connector and Node.js runtime currently support ARM64 Android
-phones. PHP and Python remain planned.
+phones. The PHP Runtime Pack is ready for integration, but PHP project setup
+remains disabled until its foreground-service lifecycle is complete. Python
+remains planned.
 
 Node.js servers must listen on `process.env.HOST` and `process.env.PORT`.
 Linkora sets these to `127.0.0.1` and `8787` before starting the project.
@@ -68,12 +71,13 @@ SQLite surface and limitations.
 - JDK 17
 - Gradle 9.6 through the included wrapper configuration
 
-To reproduce the bundled Node.js binary, follow
-[`docs/node-runtime-build.md`](docs/node-runtime-build.md). Run
-`./gradlew :app:assembleDebug :runtime-node:assembleDebug` and install the
-generated APKs on an Android 8.0 or newer ARM64 device. Runtime-pack design and
-verification are documented in [`docs/runtime-packs.md`](docs/runtime-packs.md).
-Android Studio is optional.
+To reproduce the runtime binaries, follow
+[`docs/node-runtime-build.md`](docs/node-runtime-build.md) and
+[`docs/php-runtime-build.md`](docs/php-runtime-build.md). Run
+`./gradlew :app:assembleDebug :runtime-node:assembleDebug :runtime-php:assembleDebug`
+and install the generated APKs on an Android 8.0 or newer ARM64 device.
+Runtime-pack design and verification are documented in
+[`docs/runtime-packs.md`](docs/runtime-packs.md). Android Studio is optional.
 
 ## F-Droid preparation
 
