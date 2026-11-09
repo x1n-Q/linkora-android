@@ -10,7 +10,7 @@ is final.
 2. Confirm the application version and version code in `app/build.gradle.kts`.
 3. Update the build entry in `.fdroid.yml` to the same version.
 4. Run `./scripts/verify-bundled-runtime.sh`.
-5. Run `./gradlew clean :app:assembleRelease` with JDK 17.
+5. Run `./gradlew clean :app:assembleRelease :runtime-node:assembleRelease` with JDK 17.
 6. Test the release build on a physical ARM64 Android device.
 7. Commit all release sources and create the matching signed source tag, such
    as `v0.5.0`.
@@ -29,6 +29,11 @@ values are recorded in:
 - `docs/connector-build.md`
 - `THIRD_PARTY_NOTICES.md`
 - `scripts/verify-bundled-runtime.sh`
+- `docs/runtime-packs.md`
+
+The Node.js Runtime Pack has its own application ID and therefore requires its
+own F-Droid metadata submission when it becomes mandatory. The main app keeps
+the verified built-in fallback during this migration release.
 
 The local metadata uses narrowly scoped `scanignore` entries for these known
 files. F-Droid maintainers may request that native artifacts be rebuilt in the

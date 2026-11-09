@@ -7,6 +7,7 @@ Lightweight Android companion for Linkora, built with Kotlin and Jetpack Compose
 - Real static-site workspaces selected through Android Files
 - Real Node.js workspaces selected through Android Files
 - Bundled ARM64 Node.js 24 LTS runtime and npm, with no Termux dependency
+- Verified headless Node.js Runtime Pack with a built-in migration fallback
 - In-app controls to install packages and start, restart, or stop Node.js projects
 - Editable starter files in `Download/LinkoraProjects/linkora-starter`
 - Persisted access to any selected folder containing `index.html`
@@ -69,8 +70,10 @@ SQLite surface and limitations.
 
 To reproduce the bundled Node.js binary, follow
 [`docs/node-runtime-build.md`](docs/node-runtime-build.md). Run
-`./gradlew :app:assembleDebug` and install the generated APK on an Android 8.0
-or newer ARM64 device. Android Studio is optional.
+`./gradlew :app:assembleDebug :runtime-node:assembleDebug` and install the
+generated APKs on an Android 8.0 or newer ARM64 device. Runtime-pack design and
+verification are documented in [`docs/runtime-packs.md`](docs/runtime-packs.md).
+Android Studio is optional.
 
 ## F-Droid preparation
 
