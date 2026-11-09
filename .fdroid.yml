@@ -27,10 +27,10 @@ Builds:
     prebuild:
       - ./scripts/verify-bundled-runtime.sh
     scanignore:
-      - app/src/main/jniLibs/arm64-v8a/libc++_shared.so
+      - runtime-payloads/node/jniLibs/arm64-v8a/libc++_shared.so
       - app/src/main/jniLibs/arm64-v8a/libcloudflared.so
-      - app/src/main/jniLibs/arm64-v8a/libnode_runtime.so
-      - app/src/main/assets/node/npm.zip
+      - runtime-payloads/node/jniLibs/arm64-v8a/libnode_runtime.so
+      - runtime-payloads/node/assets/node/npm.zip
 
 MaintainerNotes: |-
   The APK currently supports ARM64 Android devices only.

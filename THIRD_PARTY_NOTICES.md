@@ -29,6 +29,7 @@ code and is started only for a user-selected Node.js project.
 - Copyright: Node.js contributors
 - License: MIT and third-party licenses listed by the Node.js project
 - Bundled license: `app/src/main/assets/licenses/Node.js-LICENSE.txt`
+- Runtime payload: `runtime-payloads/node/jniLibs/arm64-v8a/libnode_runtime.so`
 
 The first Android release omits optional ICU internationalization data to keep
 the application smaller. Node.js on Android is maintained and tested by the
@@ -48,6 +49,7 @@ installation is requested.
 - Copyright: npm, Inc. and contributors
 - License: Artistic License 2.0 and bundled dependency licenses
 - Bundled license: `app/src/main/assets/licenses/npm-LICENSE.txt`
+- Runtime payload: `runtime-payloads/node/assets/node/npm.zip`
 
 ## Application libraries
 

@@ -15,7 +15,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 work_dir="$(mktemp -d -t linkora-npm-bundle.XXXXXX)"
 archive="$work_dir/npm-${NPM_VERSION}.tgz"
 source_dir="$work_dir/package"
-output="$repo_root/app/src/main/assets/node/npm.zip"
+output="$repo_root/runtime-payloads/node/assets/node/npm.zip"
 
 cleanup() {
   rm -rf "$work_dir"

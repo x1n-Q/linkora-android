@@ -43,10 +43,13 @@ and enable `CPU_NO_SIMD` for Android in both bundled zlib copies. Without these
 patches, the build leaves unresolved host trap-handler symbols and expects an
 NDK `cpufeatures` implementation that it does not link.
 
-The verified output belongs at:
+The verified outputs are shared by the main app fallback and the standalone
+runtime pack:
 
 ```text
-app/src/main/jniLibs/arm64-v8a/libnode_runtime.so
+runtime-payloads/node/jniLibs/arm64-v8a/libnode_runtime.so
+runtime-payloads/node/jniLibs/arm64-v8a/libc++_shared.so
+runtime-payloads/node/assets/node/npm.zip
 ```
 
 The runtime dynamically links the Android NDK C++ runtime. The build script

@@ -43,8 +43,8 @@ else
 fi
 archive="$work_dir/node-v${NODE_VERSION}.tar.xz"
 source_dir="$work_dir/node-v${NODE_VERSION}"
-output="$repo_root/app/src/main/jniLibs/$ANDROID_ABI/libnode_runtime.so"
-cxx_runtime_output="$repo_root/app/src/main/jniLibs/$ANDROID_ABI/libc++_shared.so"
+output="$repo_root/runtime-payloads/node/jniLibs/$ANDROID_ABI/libnode_runtime.so"
+cxx_runtime_output="$repo_root/runtime-payloads/node/jniLibs/$ANDROID_ABI/libc++_shared.so"
 
 cleanup() {
   if [[ "$temporary_work_dir" == true ]]; then

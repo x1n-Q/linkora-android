@@ -34,6 +34,13 @@ android {
         compose = true
     }
 
+    sourceSets {
+        getByName("main") {
+            assets.directories.add("../runtime-payloads/node/assets")
+            jniLibs.directories.add("../runtime-payloads/node/jniLibs")
+        }
+    }
+
     packaging {
         jniLibs {
             useLegacyPackaging = true
