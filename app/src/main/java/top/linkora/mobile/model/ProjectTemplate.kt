@@ -22,7 +22,7 @@ val projectTemplates = listOf(
         id = "node",
         code = "NODE",
         name = "Node.js",
-        description = "Run JavaScript servers with bundled Node.js 24 LTS and npm.",
+        description = "Run JavaScript servers with verified Node.js 24 LTS and npm.",
         runtimePackage = "Node.js 24 LTS",
         available = true,
     ),
