@@ -27,6 +27,7 @@ import top.linkora.mobile.project.ProjectKind
 import top.linkora.mobile.project.ProjectWorkspaceState
 import top.linkora.mobile.project.ProjectWorkspaceViewModel
 import top.linkora.mobile.publish.PublishViewModel
+import top.linkora.mobile.runtime.RuntimePackViewModel
 import top.linkora.mobile.ui.LinkoraApp
 import top.linkora.mobile.ui.theme.LinkoraTheme
 
@@ -35,6 +36,7 @@ class MainActivity : ComponentActivity() {
     private val projectViewModel: ProjectWorkspaceViewModel by viewModels()
     private val publishViewModel: PublishViewModel by viewModels()
     private val nodeRuntimeViewModel: NodeRuntimeViewModel by viewModels()
+    private val runtimePackViewModel: RuntimePackViewModel by viewModels()
     private var pendingNodeAction: (() -> Unit)? = null
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -83,6 +85,7 @@ class MainActivity : ComponentActivity() {
             val publishState by publishViewModel.uiState.collectAsState()
             val connectorState by TunnelConnectorStatus.state.collectAsState()
             val nodeRuntimeState by nodeRuntimeViewModel.uiState.collectAsState()
+            val runtimePackState by runtimePackViewModel.uiState.collectAsState()
 
             LaunchedEffect(authViewModel) {
                 authViewModel.browserRequests.collect(::openWebSignIn)
@@ -95,6 +98,7 @@ class MainActivity : ComponentActivity() {
                     publishState = publishState,
                     connectorState = connectorState,
                     nodeRuntimeState = nodeRuntimeState,
+                    runtimePackState = runtimePackState,
                     onStartSignIn = authViewModel::startSignIn,
                     onReopenBrowser = authViewModel::reopenBrowser,
                     onCancelSignIn = authViewModel::cancelSignIn,
@@ -127,6 +131,11 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        runtimePackViewModel.refresh()
     }
 
     private fun openWebSignIn(url: String) {

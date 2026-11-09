@@ -123,7 +123,9 @@ class NodeRuntimeService : Service() {
                 val compatibilityDrivers = NodeCompatibilityManager(applicationContext)
                     .ensureProjectAdapters(launchConfig.projectDirectory)
                 logCompatibilityDrivers(compatibilityDrivers)
-                val executable = NodeBinary.resolve(applicationContext)
+                val runtimeInstallation = NodeBinary.resolveInstallation(applicationContext)
+                val executable = runtimeInstallation.executable
+                NodeRuntimeStatus.appendLog("Runtime: ${runtimeInstallation.source}")
                 val commandDirectory = NodeBinary.prepareCommandDirectory(applicationContext, executable)
                 waitForPortRelease()
 
@@ -216,7 +218,9 @@ class NodeRuntimeService : Service() {
                     launchConfig.projectDirectory,
                 )
                 logCompatibilityDrivers(compatibilityDrivers)
-                val executable = NodeBinary.resolve(applicationContext)
+                val runtimeInstallation = NodeBinary.resolveInstallation(applicationContext)
+                val executable = runtimeInstallation.executable
+                NodeRuntimeStatus.appendLog("Runtime: ${runtimeInstallation.source}")
                 val commandDirectory = NodeBinary.prepareCommandDirectory(applicationContext, executable)
                 val npmCli = NpmBundle.resolveCli(applicationContext)
                 val installSession = compatibilityManager.prepareDependencyInstall(
@@ -382,7 +386,7 @@ class NodeRuntimeService : Service() {
                     put("PORT", ProjectWorkspaceManager.LOCAL_PORT.toString())
                     put("NODE_ENV", "production")
                     put("NODE_PATH", File(directory, "node_modules").absolutePath)
-                    prependToNativeLibraryPath(File(applicationInfo.nativeLibraryDir))
+                    prependToNativeLibraryPath(checkNotNull(executable.parentFile))
                     prependToPath(commandDirectory)
                 }
             }
@@ -413,7 +417,7 @@ class NodeRuntimeService : Service() {
                     put("TMPDIR", temporary.absolutePath)
                     put("npm_config_cache", npmCache.absolutePath)
                     put("npm_config_update_notifier", "false")
-                    prependToNativeLibraryPath(File(applicationInfo.nativeLibraryDir))
+                    prependToNativeLibraryPath(checkNotNull(executable.parentFile))
                     prependToPath(commandDirectory)
                 }
             }

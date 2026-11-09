@@ -5,6 +5,7 @@ import android.os.Build
 import java.io.File
 import java.nio.file.Files
 import java.security.MessageDigest
+import top.linkora.mobile.runtime.RuntimePacks
 
 object NodeBinary {
     const val VERSION = "24.22.1"
@@ -12,10 +13,25 @@ object NodeBinary {
     private const val ARM64_SHA256 =
         "c03a6a63832dc27dec14d6879a194242c7f2142301471c18d67354fe137d2b6a"
 
-    fun resolve(context: Context): File {
+    data class Installation(
+        val executable: File,
+        val source: String,
+    )
+
+    fun resolve(context: Context): File = resolveInstallation(context).executable
+
+    fun resolveInstallation(context: Context): Installation {
         check(Build.SUPPORTED_ABIS.any { it == "arm64-v8a" }) {
-            "The built-in Node.js runtime currently requires an ARM64 Android device."
+            "The Node.js runtime currently requires an ARM64 Android device."
         }
+        val runtimePack = RuntimePacks.inspectNode(context).installation
+        if (runtimePack != null) {
+            return Installation(
+                executable = runtimePack.executable,
+                source = "Verified Node.js Runtime Pack ${runtimePack.spec.runtimeVersion}",
+            )
+        }
+
         val executable = File(context.applicationInfo.nativeLibraryDir, LIBRARY_NAME)
         check(executable.isFile) { "The bundled Node.js runtime is missing." }
         check(executable.sha256() == ARM64_SHA256) {
@@ -24,7 +40,10 @@ object NodeBinary {
         check(executable.canExecute()) {
             "Android did not install the Node.js runtime as executable code."
         }
-        return executable
+        return Installation(
+            executable = executable,
+            source = "Built-in Node.js migration fallback $VERSION",
+        )
     }
 
     fun prepareCommandDirectory(context: Context, executable: File): File {

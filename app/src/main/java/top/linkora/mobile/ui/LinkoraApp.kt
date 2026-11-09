@@ -73,6 +73,8 @@ import top.linkora.mobile.project.ProjectKind
 import top.linkora.mobile.project.ProjectWorkspaceState
 import top.linkora.mobile.publish.ManagedHostname
 import top.linkora.mobile.publish.PublishUiState
+import top.linkora.mobile.runtime.RuntimePackState
+import top.linkora.mobile.runtime.RuntimePackUiState
 import top.linkora.mobile.ui.theme.Charcoal
 import top.linkora.mobile.ui.theme.ActionSurface
 import top.linkora.mobile.ui.theme.DisabledSurface
@@ -108,6 +110,7 @@ fun LinkoraApp(
     publishState: PublishUiState,
     connectorState: TunnelConnectorState,
     nodeRuntimeState: NodeRuntimeState,
+    runtimePackState: RuntimePackUiState,
     onStartSignIn: () -> Unit,
     onReopenBrowser: () -> Unit,
     onCancelSignIn: () -> Unit,
@@ -162,6 +165,7 @@ fun LinkoraApp(
             when (step) {
                 OnboardingStep.ProjectType -> ProjectTypeScreen(
                     selectedProjectId = selectedProjectId,
+                    runtimePackState = runtimePackState,
                     onSelectProject = { selectedProjectId = it.id },
                     onContinue = {
                         onPrepareProject(requireNotNull(selectedProjectId))
@@ -171,6 +175,7 @@ fun LinkoraApp(
 
                 OnboardingStep.WebSignIn -> WebSignInScreen(
                     selectedProject = requireNotNull(selectedProject),
+                    runtimePackState = runtimePackState,
                     authState = authState,
                     projectState = projectState,
                     onStartSignIn = onStartSignIn,
@@ -266,6 +271,7 @@ private fun LinkoraHeader() {
 @Composable
 private fun ProjectTypeScreen(
     selectedProjectId: String?,
+    runtimePackState: RuntimePackUiState,
     onSelectProject: (ProjectTemplate) -> Unit,
     onContinue: () -> Unit,
 ) {
@@ -288,7 +294,7 @@ private fun ProjectTypeScreen(
                     style = MaterialTheme.typography.headlineLarge,
                 )
                 Text(
-                    text = "Choose a static site or run a Node.js server directly on this phone. PHP and Python are planned.",
+                    text = "Choose a static site or run a Node.js server directly on this phone. Additional runtimes remain separate and optional.",
                     modifier = Modifier.padding(top = 12.dp),
                     color = MutedText,
                     style = MaterialTheme.typography.bodyLarge,
@@ -299,6 +305,7 @@ private fun ProjectTypeScreen(
         item {
             ProjectTemplateGrid(
                 selectedProjectId = selectedProjectId,
+                runtimePackState = runtimePackState,
                 onSelectProject = onSelectProject,
             )
         }
@@ -316,7 +323,7 @@ private fun ProjectTypeScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
-                    text = "Node.js is bundled with Linkora. The app does not require Termux or download native runtimes.",
+                    text = "Node.js uses a verified runtime pack when installed and keeps a built-in fallback during migration.",
                     modifier = Modifier.padding(top = 12.dp),
                     color = MutedText,
                     style = MaterialTheme.typography.bodyMedium,
@@ -329,6 +336,7 @@ private fun ProjectTypeScreen(
 @Composable
 private fun ProjectTemplateGrid(
     selectedProjectId: String?,
+    runtimePackState: RuntimePackUiState,
     onSelectProject: (ProjectTemplate) -> Unit,
 ) {
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
@@ -348,6 +356,7 @@ private fun ProjectTemplateGrid(
                             ProjectTemplateCard(
                                 project = project,
                                 selected = selectedProjectId == project.id,
+                                runtimePackState = runtimePackState,
                                 onSelect = { onSelectProject(project) },
                             )
                         }
@@ -363,6 +372,7 @@ private fun ProjectTemplateGrid(
                     ProjectTemplateCard(
                         project = project,
                         selected = selectedProjectId == project.id,
+                        runtimePackState = runtimePackState,
                         onSelect = { onSelectProject(project) },
                     )
                 }
@@ -375,6 +385,7 @@ private fun ProjectTemplateGrid(
 private fun ProjectTemplateCard(
     project: ProjectTemplate,
     selected: Boolean,
+    runtimePackState: RuntimePackUiState,
     onSelect: () -> Unit,
 ) {
     Card(
@@ -431,6 +442,12 @@ private fun ProjectTemplateCard(
                 Text(
                     text = when {
                         !project.available -> "PLANNED / ${project.runtimePackage.orEmpty()}"
+                        project.id == "node" &&
+                            runtimePackState.node.state == RuntimePackState.Ready ->
+                            "RUNTIME PACK / ${project.runtimePackage}"
+                        project.id == "node" &&
+                            runtimePackState.node.state == RuntimePackState.Invalid ->
+                            "PACK REJECTED / BUILT-IN FALLBACK"
                         project.runtimePackage != null -> "BUILT IN / ${project.runtimePackage}"
                         else -> "AVAILABLE / NO RUNTIME REQUIRED"
                     },
@@ -457,6 +474,7 @@ private fun ProjectTemplateCard(
 @Composable
 private fun WebSignInScreen(
     selectedProject: ProjectTemplate,
+    runtimePackState: RuntimePackUiState,
     authState: AuthUiState,
     projectState: ProjectWorkspaceState,
     onStartSignIn: () -> Unit,
@@ -523,7 +541,17 @@ private fun WebSignInScreen(
                     )
                     SummaryRow(
                         label = "Install status",
-                        value = if (selectedProject.id == "node") "Included in app" else "Ready",
+                        value = if (selectedProject.id == "node") {
+                            when (runtimePackState.node.state) {
+                                RuntimePackState.Ready -> "Verified runtime pack"
+                                RuntimePackState.Invalid -> "Pack rejected; built-in fallback"
+                                RuntimePackState.Incompatible -> "Pack incompatible; built-in fallback"
+                                RuntimePackState.Missing -> "Built-in migration fallback"
+                                RuntimePackState.Checking -> "Checking runtime pack"
+                            }
+                        } else {
+                            "Ready"
+                        },
                     )
                 }
             }

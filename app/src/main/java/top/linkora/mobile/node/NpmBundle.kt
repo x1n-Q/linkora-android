@@ -4,6 +4,7 @@ import android.content.Context
 import java.io.File
 import java.security.MessageDigest
 import java.util.zip.ZipInputStream
+import top.linkora.mobile.runtime.RuntimePacks
 
 object NpmBundle {
     const val VERSION = "11.19.1"
@@ -20,11 +21,15 @@ object NpmBundle {
         installation.deleteRecursively()
         check(installation.mkdirs()) { "The bundled npm directory could not be created." }
 
-        val archiveHash = context.assets.open(ASSET_PATH).use(::sha256)
+        val runtimePack = RuntimePacks.inspectNode(context).installation
+        val openArchive = {
+            runtimePack?.openAsset(ASSET_PATH) ?: context.assets.open(ASSET_PATH)
+        }
+        val archiveHash = openArchive().use(::sha256)
         check(archiveHash == ARCHIVE_SHA256) { "The bundled npm archive failed its integrity check." }
 
         try {
-            context.assets.open(ASSET_PATH).use { archive ->
+            openArchive().use { archive ->
                 ZipInputStream(archive.buffered()).use { zip ->
                     while (true) {
                         val entry = zip.nextEntry ?: break
