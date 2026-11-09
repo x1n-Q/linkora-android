@@ -1,0 +1,79 @@
+diff --git a/ext/standard/basic_functions.stub.php b/ext/standard/basic_functions.stub.php
+--- a/ext/standard/basic_functions.stub.php
++++ b/ext/standard/basic_functions.stub.php
+@@ -2140,6 +2140,8 @@ function dns_check_record(string $hostname, string $type = "MX"): bool {}
+ /** @alias dns_check_record */
+ function checkdnsrr(string $hostname, string $type = "MX"): bool {}
+ 
++#if (defined(PHP_WIN32) || defined(HAVE_FULL_DNS_FUNCS))
++
+ /**
+  * @param array $authoritative_name_servers
+  * @param array $additional_records
+@@ -2161,6 +2163,7 @@ function dns_get_mx(string $hostname, &$hosts, &$weights = null): bool {}
+  */
+ function getmxrr(string $hostname, &$hosts, &$weights = null): bool {}
+ #endif
++#endif
+ 
+ /* net.c */
+ 
+diff --git a/ext/standard/basic_functions_arginfo.h b/ext/standard/basic_functions_arginfo.h
+--- a/ext/standard/basic_functions_arginfo.h
++++ b/ext/standard/basic_functions_arginfo.h
+@@ -1,5 +1,5 @@
+ /* This is a generated file, edit the .stub.php file instead.
+- * Stub hash: 5eeeaf1f292c72e4553dabc5a64f27781bf57d86 */
++ * Stub hash: d9184e333ed4478354666996f724de4868cc637b */
+ 
+ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_set_time_limit, 0, 1, _IS_BOOL, 0)
+ 	ZEND_ARG_TYPE_INFO(0, seconds, IS_LONG, 0)
+@@ -646,7 +646,9 @@ ZEND_END_ARG_INFO()
+ ZEND_END_ARG_INFO()
+ 
+ #define arginfo_checkdnsrr arginfo_dns_check_record
++#endif
+ 
++#if (defined(PHP_WIN32) || defined(HAVE_DNS_SEARCH_FUNC)) && (defined(PHP_WIN32) || defined(HAVE_FULL_DNS_FUNCS))
+ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_dns_get_record, 0, 1, MAY_BE_ARRAY|MAY_BE_FALSE)
+ 	ZEND_ARG_TYPE_INFO(0, hostname, IS_STRING, 0)
+ 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, type, IS_LONG, 0, "DNS_ANY")
+@@ -2468,6 +2470,8 @@
+ ZEND_FUNCTION(gethostbynamel);
+ #if (defined(PHP_WIN32) || defined(HAVE_DNS_SEARCH_FUNC))
+ ZEND_FUNCTION(dns_check_record);
++#endif
++#if (defined(PHP_WIN32) || defined(HAVE_DNS_SEARCH_FUNC)) && (defined(PHP_WIN32) || defined(HAVE_FULL_DNS_FUNCS))
+ ZEND_FUNCTION(dns_get_record);
+ ZEND_FUNCTION(dns_get_mx);
+ #endif
+@@ -3065,6 +3069,8 @@ static const zend_function_entry ext_functions[] = {
+ #if (defined(PHP_WIN32) || defined(HAVE_DNS_SEARCH_FUNC))
+ 	ZEND_FE(dns_check_record, arginfo_dns_check_record)
+ 	ZEND_RAW_FENTRY("checkdnsrr", zif_dns_check_record, arginfo_checkdnsrr, 0, NULL, NULL)
++#endif
++#if (defined(PHP_WIN32) || defined(HAVE_DNS_SEARCH_FUNC)) && (defined(PHP_WIN32) || defined(HAVE_FULL_DNS_FUNCS))
+ 	ZEND_FE(dns_get_record, arginfo_dns_get_record)
+ 	ZEND_FE(dns_get_mx, arginfo_dns_get_mx)
+ 	ZEND_RAW_FENTRY("getmxrr", zif_dns_get_mx, arginfo_getmxrr, 0, NULL, NULL)
+diff --git a/ext/standard/php_fopen_wrapper.c b/ext/standard/php_fopen_wrapper.c
+--- a/ext/standard/php_fopen_wrapper.c
++++ b/ext/standard/php_fopen_wrapper.c
+@@ -317,11 +317,16 @@ PHPAPI php_stream *_php_stream_fopen_with_path(const char *filename, const char *
+ 			return NULL;
+ 		}
+ 
+-#ifdef HAVE_UNISTD_H
++#if defined(__ANDROID__)
++		dtablesize = (int) sysconf(_SC_OPEN_MAX);
++#elif defined(HAVE_UNISTD_H)
+ 		dtablesize = getdtablesize();
+ #else
+ 		dtablesize = INT_MAX;
+ #endif
++		if (dtablesize < 0) {
++			dtablesize = INT_MAX;
++		}
+ 
+ 		if (fildes_ori < 0 || fildes_ori >= dtablesize) {
+ 			php_stream_wrapper_log_error(wrapper, options,

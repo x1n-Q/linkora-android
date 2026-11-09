@@ -1,0 +1,21 @@
+diff --git a/main/php_config.h b/main/php_config.h
+--- a/main/php_config.h
++++ b/main/php_config.h
+@@ -565,7 +565,7 @@
+ #define HAVE_DN_EXPAND 1
+ 
+ /* Define to 1 if you have the 'dn_skipname' function. */
+-#define HAVE_DN_SKIPNAME 1
++/* #undef HAVE_DN_SKIPNAME */
+ 
+ /* Define to 1 if the PHP extension 'dom' is available. */
+ /* #undef HAVE_DOM */
+@@ -1273,7 +1273,7 @@
+ /* #undef HAVE_RES_NDESTROY */
+ 
+ /* Define to 1 if you have the 'res_nsearch' function. */
+-#define HAVE_RES_NSEARCH 1
++/* #undef HAVE_RES_NSEARCH */
+ 
+ /* Define to 1 if you have the 'res_search' function. */
+ #define HAVE_RES_SEARCH 1
