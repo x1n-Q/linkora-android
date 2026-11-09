@@ -10,13 +10,13 @@ foreground services, logs, and process lifecycle.
 
 The first contract version requires these application metadata values:
 
-| Key | Node.js value |
-| --- | --- |
-| `top.linkora.runtime.ID` | `node` |
-| `top.linkora.runtime.PROTOCOL` | `1` |
-| `top.linkora.runtime.VERSION` | `24.22.1` |
-| `top.linkora.runtime.ABI` | `arm64-v8a` |
-| `top.linkora.runtime.EXECUTABLE` | `libnode_runtime.so` |
+| Key | Node.js value | PHP value |
+| --- | --- | --- |
+| `top.linkora.runtime.ID` | `node` | `php` |
+| `top.linkora.runtime.PROTOCOL` | `1` | `1` |
+| `top.linkora.runtime.VERSION` | `24.22.1` | `8.4.27` |
+| `top.linkora.runtime.ABI` | `arm64-v8a` | `arm64-v8a` |
+| `top.linkora.runtime.EXECUTABLE` | `libnode_runtime.so` | `libphp_runtime.so` |
 
 The main app declares the known package IDs in its manifest `<queries>` block.
 It reads `ApplicationInfo.nativeLibraryDir`, validates the contract metadata,
@@ -43,6 +43,12 @@ Build and verify both APKs:
 ./gradlew :app:assembleDebug :runtime-node:assembleDebug
 ./scripts/verify-runtime-pack.sh
 ```
+
+`runtime-php` is the second pack. It contains PHP CLI, the built-in web server,
+and statically linked SQLite support. The binary and pack are reproducible with
+`scripts/build-php-runtime.sh` and verified by
+`scripts/verify-php-runtime-pack.sh`. PHP remains unavailable in project setup
+until its foreground-service lifecycle is integrated in the main app.
 
 Install the runtime before the main app when testing a clean device:
 

@@ -17,3 +17,4 @@ dependencyResolutionManagement {
 rootProject.name = "LinkoraMobile"
 include(":app")
 include(":runtime-node")
+include(":runtime-php")
