@@ -1,0 +1,12 @@
+Linkora MariaDB Runtime Pack 13.0.2
+
+The corresponding MariaDB source is available from:
+https://archive.mariadb.org/mariadb-13.0.2/source/
+
+The Android build recipe and patches are maintained by Termux:
+https://github.com/termux/termux-packages/tree/master/packages/mariadb
+
+Linkora's deterministic repackaging script is scripts/build-mariadb-runtime.sh.
+It downloads the pinned Android packages, verifies their SHA-256 hashes, keeps
+only the required server payload, and changes dependency names and RUNPATH so
+Android Package Manager can install every executable library securely.

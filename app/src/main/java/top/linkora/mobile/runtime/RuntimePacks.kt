@@ -37,9 +37,44 @@ object RuntimePacks {
         ),
     )
 
+    val MariaDb = RuntimePackSpec(
+        id = "mariadb",
+        displayName = "MariaDB Runtime Pack",
+        packageName = "top.linkora.runtime.mariadb",
+        protocolVersion = 1,
+        runtimeVersion = "13.0.2",
+        executableName = "libmariadbd_runtime.so",
+        supportedAbis = setOf("arm64-v8a"),
+        nativeLibraryHashes = mapOf(
+            "libmariadbd_runtime.so" to
+                "2f222e39293fba966e11421adfa1b854e55af9179673d3fb76dc22313a56e4d8",
+            "libandroid-support.so" to
+                "b85cf4366fa2f2babbba65919aaaeaddd9d06c8f760e94d926e1de473f975b76",
+            "libpcre2-8.so" to
+                "c377920ae65a2459379855f436d0fa794840e87f04102696998336b7134727b7",
+            "libcrypt.so" to
+                "2eb51887ee32c148a215dd58f823ee0d0f6967d11c0a2a2763e9a9f69867fcf8",
+            "liblinkora_z.so" to
+                "bb7a5d47358e499dc9a384a23637a10e6ae4e2d95916f3d75e2064fcf859713d",
+            "liblinkora_ssl.so" to
+                "69eab05c3df398558e6956e2b367d274195b85874bfd4efa468d1f6e804ecc58",
+            "liblinkora_crypto.so" to
+                "2234d1756cd56345d220e0a2312efdc811ca1e1b4c3eed26f3cd762570e7e6a9",
+            "libc++_shared.so" to
+                "3fa975c388ee7407f75a562f8a157f3b329ccbea56d34511a30becfa19dd665a",
+        ),
+        assetHashes = mapOf(
+            "mariadb/share.zip" to
+                "5a2910048432b47ae6788a12d965a0788a4b9f011089491833b4c17e04130290",
+        ),
+    )
+
     fun inspectNode(context: Context): RuntimePackInspection =
         RuntimePackManager(context).inspect(Node)
 
     fun inspectPhp(context: Context): RuntimePackInspection =
         RuntimePackManager(context).inspect(Php)
+
+    fun inspectMariaDb(context: Context): RuntimePackInspection =
+        RuntimePackManager(context).inspect(MariaDb)
 }

@@ -10,13 +10,13 @@ foreground services, logs, and process lifecycle.
 
 The first contract version requires these application metadata values:
 
-| Key | Node.js value | PHP value |
-| --- | --- | --- |
-| `top.linkora.runtime.ID` | `node` | `php` |
-| `top.linkora.runtime.PROTOCOL` | `1` | `1` |
-| `top.linkora.runtime.VERSION` | `24.22.1` | `8.4.27` |
-| `top.linkora.runtime.ABI` | `arm64-v8a` | `arm64-v8a` |
-| `top.linkora.runtime.EXECUTABLE` | `libnode_runtime.so` | `libphp_runtime.so` |
+| Key | Node.js value | PHP value | MariaDB value |
+| --- | --- | --- | --- |
+| `top.linkora.runtime.ID` | `node` | `php` | `mariadb` |
+| `top.linkora.runtime.PROTOCOL` | `1` | `1` | `1` |
+| `top.linkora.runtime.VERSION` | `24.22.1` | `8.4.27` | `13.0.2` |
+| `top.linkora.runtime.ABI` | `arm64-v8a` | `arm64-v8a` | `arm64-v8a` |
+| `top.linkora.runtime.EXECUTABLE` | `libnode_runtime.so` | `libphp_runtime.so` | `libmariadbd_runtime.so` |
 
 The main app declares the known package IDs in its manifest `<queries>` block.
 It reads `ApplicationInfo.nativeLibraryDir`, validates the contract metadata,
@@ -50,6 +50,10 @@ and statically linked SQLite support. The binary and pack are reproducible with
 `scripts/verify-php-runtime-pack.sh`. The main app verifies the installed pack
 before enabling PHP project setup, then owns project synchronization, the
 foreground service, process logs, runtime metrics, and tunnel lifecycle.
+
+`runtime-mariadb` is an optional database pack. It contains MariaDB Community
+Server, its direct Android libraries, and the data required to create a private
+database directory. The server is never started by the pack itself.
 
 Install the runtime before the main app when testing a clean device:
 
