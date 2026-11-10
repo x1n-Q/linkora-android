@@ -17,6 +17,20 @@ SQLite3, sessions, sockets, fileinfo, tokenizer, filter, ctype, bcmath,
 calendar, and EXIF. OpenSSL, cURL, XML, and MySQL clients are not included in
 this first build and must not be presented as supported.
 
+## Project lifecycle
+
+The main app enables PHP only after the installed pack passes its metadata,
+ABI, executable, and SHA-256 checks. A PHP project must contain `index.php` at
+its root. Linkora copies source files from Android Files into an isolated app
+workspace whenever the user starts or restarts PHP. Runtime-created files are
+preserved between synchronizations.
+
+`PhpRuntimeService` launches the built-in server on `127.0.0.1:8787`, exposes
+logs and memory use in the app, and remains active as an Android foreground
+service with a persistent notification. The notification provides a direct
+Stop action. Starting another Linkora runtime stops PHP before reusing the
+local port.
+
 ## Build
 
 ```sh

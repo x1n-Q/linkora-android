@@ -47,8 +47,9 @@ Build and verify both APKs:
 `runtime-php` is the second pack. It contains PHP CLI, the built-in web server,
 and statically linked SQLite support. The binary and pack are reproducible with
 `scripts/build-php-runtime.sh` and verified by
-`scripts/verify-php-runtime-pack.sh`. PHP remains unavailable in project setup
-until its foreground-service lifecycle is integrated in the main app.
+`scripts/verify-php-runtime-pack.sh`. The main app verifies the installed pack
+before enabling PHP project setup, then owns project synchronization, the
+foreground service, process logs, runtime metrics, and tunnel lifecycle.
 
 Install the runtime before the main app when testing a clean device:
 

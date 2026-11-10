@@ -9,6 +9,8 @@ Lightweight Android companion for Linkora, built with Kotlin and Jetpack Compose
 - Bundled ARM64 Node.js 24 LTS runtime and npm, with no Termux dependency
 - Verified headless Node.js Runtime Pack with a built-in migration fallback
 - Device-tested PHP 8.4 Runtime Pack with PDO SQLite and the built-in web server
+- Real PHP workspaces selected through Android Files, with persistent runtime data
+- In-app PHP start, restart, stop, preview, logs, uptime, and memory controls
 - In-app controls to install packages and start, restart, or stop Node.js projects
 - Editable starter files in `Download/LinkoraProjects/linkora-starter`
 - Persisted access to any selected folder containing `index.html`
@@ -32,13 +34,14 @@ the approved request for a revocable device token.
 
 ## Project workflow
 
-1. Select **Static site** or **Node.js** and sign in with Linkora.
+1. Select **Static site**, **Node.js**, or **PHP** and sign in with Linkora.
 2. Use the included starter or tap **Choose project folder**.
 3. In Android Files, choose a folder containing `index.html` for a static site,
-   or `package.json` and a supported JavaScript entry file for Node.js.
+   `package.json` and a supported JavaScript entry file for Node.js, or
+   `index.php` for PHP.
 4. Edit the selected files with any Android file editor.
-5. For Node.js, install dependencies if needed and start the runtime. Open
-   **Preview local server** after the project is running.
+5. For Node.js, install dependencies if needed and start the runtime. For PHP,
+   start the verified PHP Runtime Pack. Open the preview after it is running.
 6. Tap **Assign Linkora URL** to reserve a hostname or use an existing managed
    hostname.
 7. Linkora starts its built-in connector and keeps the phone-hosted project online.
@@ -49,10 +52,14 @@ a private workspace whenever the runtime starts or restarts. Every selected
 project has separate persistent runtime storage, so generated databases,
 uploads, logs, and `node_modules` survive restarts without changing the source
 folder.
-The built-in connector and Node.js runtime currently support ARM64 Android
-phones. The PHP Runtime Pack is ready for integration, but PHP project setup
-remains disabled until its foreground-service lifecycle is complete. Python
-remains planned.
+The built-in connector, Node.js runtime, and PHP runtime currently support
+ARM64 Android phones. PHP requires the separate verified PHP Runtime Pack.
+Python remains planned.
+
+PHP projects must contain `index.php`. Linkora synchronizes selected project
+files into a private runtime workspace before each start or restart. Files
+created at runtime, including SQLite databases and uploads, remain available
+between restarts without modifying the selected source folder.
 
 Node.js servers must listen on `process.env.HOST` and `process.env.PORT`.
 Linkora sets these to `127.0.0.1` and `8787` before starting the project.
