@@ -26,7 +26,7 @@ private val LinkoraColorScheme = lightColorScheme(
 
 private object ColorTokens {
     val OxbloodSoft = androidx.compose.ui.graphics.Color(0xFFF1E5E5)
-    val PaperMuted = androidx.compose.ui.graphics.Color(0xFFF8F6EF)
+    val PaperMuted = androidx.compose.ui.graphics.Color(0xFFF5F4EF)
 }
 
 private val LinkoraShapes = Shapes(

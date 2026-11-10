@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -58,6 +57,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -78,7 +78,6 @@ import top.linkora.mobile.publish.PublishUiState
 import top.linkora.mobile.runtime.RuntimePackState
 import top.linkora.mobile.runtime.RuntimePackUiState
 import top.linkora.mobile.ui.theme.Charcoal
-import top.linkora.mobile.ui.theme.ActionSurface
 import top.linkora.mobile.ui.theme.DisabledSurface
 import top.linkora.mobile.ui.theme.DisabledText
 import top.linkora.mobile.ui.theme.DustyOlive
@@ -265,31 +264,21 @@ fun LinkoraApp(
 
 @Composable
 private fun LinkoraHeader() {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .windowInsetsPadding(WindowInsets.statusBars)
-            .padding(horizontal = 20.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = PaperRaised,
     ) {
-        Image(
-            painter = painterResource(R.drawable.ic_linkora_wordmark),
-            contentDescription = "Linkora",
-            modifier = Modifier.size(width = 103.dp, height = 30.dp),
-        )
-        Spacer(modifier = Modifier.weight(1f))
-        Surface(
-            color = PaperRaised,
-            shape = MaterialTheme.shapes.small,
-            border = BorderStroke(1.dp, StrongBorder),
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = "EARLY BUILD",
-                modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
-                color = Oxblood,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold,
+            Image(
+                painter = painterResource(R.drawable.ic_linkora_wordmark),
+                contentDescription = "Linkora",
+                modifier = Modifier.size(width = 94.dp, height = 28.dp),
             )
         }
     }
@@ -298,40 +287,46 @@ private fun LinkoraHeader() {
 @Composable
 private fun SetupProgress(currentStep: Int) {
     val steps = listOf("Project", "Account", "Run")
-    Row(
+    Surface(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        color = PaperRaised,
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, PaleStone),
     ) {
-        steps.forEachIndexed { index, label ->
-            val stepNumber = index + 1
-            val active = stepNumber <= currentStep
-            Column(
-                modifier = Modifier.weight(1f),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
+        Row(
+            modifier = Modifier.padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            steps.forEachIndexed { index, label ->
+                val stepNumber = index + 1
+                val current = stepNumber == currentStep
+                val complete = stepNumber < currentStep
                 Surface(
-                    modifier = Modifier.size(30.dp),
-                    shape = MaterialTheme.shapes.large,
-                    color = if (active) Oxblood else PaperRaised,
-                    border = BorderStroke(1.dp, if (active) Oxblood else StrongBorder),
+                    modifier = Modifier.weight(1f),
+                    color = if (current) Oxblood else Color.Transparent,
+                    shape = MaterialTheme.shapes.small,
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         Text(
                             text = stepNumber.toString(),
-                            color = if (active) WarmPaper else MutedText,
+                            color = if (current) PaperRaised else if (complete) DustyOlive else MutedText,
                             fontFamily = FontFamily.Monospace,
-                            fontSize = 11.sp,
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.Black,
+                        )
+                        Text(
+                            text = label,
+                            modifier = Modifier.padding(start = 6.dp),
+                            color = if (current) PaperRaised else Charcoal,
+                            fontSize = 12.sp,
+                            fontWeight = if (current) FontWeight.Bold else FontWeight.Medium,
                         )
                     }
                 }
-                Text(
-                    text = label,
-                    modifier = Modifier.padding(top = 6.dp),
-                    color = if (active) Charcoal else MutedText,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
-                )
             }
         }
     }
@@ -348,11 +343,11 @@ private fun ProjectTypeScreen(
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
             start = 20.dp,
-            top = 36.dp,
+            top = 20.dp,
             end = 20.dp,
             bottom = 24.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(24.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         item {
             SetupProgress(currentStep = 1)
@@ -360,15 +355,15 @@ private fun ProjectTypeScreen(
 
         item {
             Column(modifier = Modifier.fillMaxWidth()) {
-                SectionLabel("STEP 1 / CHOOSE A PROJECT")
+                SectionLabel("Choose project")
                 Text(
-                    text = "What kind of project is this?",
-                    modifier = Modifier.padding(top = 12.dp),
+                    text = "What do you want to run?",
+                    modifier = Modifier.padding(top = 8.dp),
                     style = MaterialTheme.typography.headlineLarge,
                 )
                 Text(
                     text = "Choose the option that matches the files you want to run on this phone.",
-                    modifier = Modifier.padding(top = 12.dp),
+                    modifier = Modifier.padding(top = 8.dp),
                     color = MutedText,
                     style = MaterialTheme.typography.bodyLarge,
                 )
@@ -426,7 +421,7 @@ private fun ProjectTemplateGrid(
                     .selectableGroup(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                projectTemplates.chunked(2).forEach { columnProjects ->
+                projectTemplates.filter { it.available }.chunked(2).forEach { columnProjects ->
                     Column(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -447,7 +442,7 @@ private fun ProjectTemplateGrid(
                 modifier = Modifier.selectableGroup(),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                projectTemplates.forEach { project ->
+                projectTemplates.filter { it.available }.forEach { project ->
                     ProjectTemplateCard(
                         project = project,
                         selected = selectedProjectId == project.id,
@@ -480,20 +475,20 @@ private fun ProjectTemplateCard(
                 role = Role.RadioButton,
             ),
         shape = MaterialTheme.shapes.medium,
-        border = BorderStroke(1.dp, if (selected) Oxblood else StrongBorder),
+        border = BorderStroke(1.dp, if (selected) Oxblood else PaleStone),
         colors = CardDefaults.cardColors(
             containerColor = if (selected) Color(0xFFF8ECEC) else PaperRaised,
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(14.dp),
             verticalAlignment = Alignment.Top,
         ) {
             Surface(
-                modifier = Modifier.size(44.dp),
+                modifier = Modifier.size(40.dp),
                 shape = MaterialTheme.shapes.small,
-                border = BorderStroke(1.dp, if (selected) Oxblood else StrongBorder),
+                border = BorderStroke(1.dp, if (selected) Oxblood else PaleStone),
                 color = WarmPaper,
             ) {
                 Column(
@@ -512,35 +507,34 @@ private fun ProjectTemplateCard(
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(start = 14.dp),
+                    .padding(start = 12.dp),
             ) {
                 Text(project.name, style = MaterialTheme.typography.titleMedium)
                 Text(
                     text = project.description,
-                    modifier = Modifier.padding(top = 5.dp),
+                    modifier = Modifier.padding(top = 3.dp),
                     color = MutedText,
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Text(
                     text = when {
-                        !project.available -> "PLANNED / ${project.runtimePackage.orEmpty()}"
                         project.id == "php" &&
                             runtimePackState.php.state == RuntimePackState.Ready ->
-                            "RUNTIME PACK / PHP 8.4.27"
+                            "PHP 8.4 READY"
                         project.id == "php" &&
                             runtimePackState.php.state == RuntimePackState.Checking ->
-                            "CHECKING RUNTIME PACK"
-                        project.id == "php" -> "RUNTIME PACK REQUIRED"
+                            "CHECKING PHP RUNTIME"
+                        project.id == "php" -> "PHP RUNTIME REQUIRED"
                         project.id == "node" &&
                             runtimePackState.node.state == RuntimePackState.Ready ->
-                            "RUNTIME PACK / ${project.runtimePackage}"
+                            "NODE.JS READY"
                         project.id == "node" &&
                             runtimePackState.node.state == RuntimePackState.Invalid ->
-                            "PACK REJECTED / BUILT-IN FALLBACK"
-                        project.runtimePackage != null -> "BUILT IN / ${project.runtimePackage}"
-                        else -> "AVAILABLE / NO RUNTIME REQUIRED"
+                            "USING BUILT-IN NODE.JS"
+                        project.runtimePackage != null -> "RUNTIME INCLUDED"
+                        else -> "NO RUNTIME NEEDED"
                     },
-                    modifier = Modifier.padding(top = 10.dp),
+                    modifier = Modifier.padding(top = 8.dp),
                     color = if (selectable) DustyOlive else MutedText,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 9.sp,
@@ -578,26 +572,26 @@ private fun WebSignInScreen(
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
             start = 20.dp,
-            top = 36.dp,
+            top = 20.dp,
             end = 20.dp,
             bottom = 24.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(24.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         item {
             SetupProgress(currentStep = 2)
         }
 
         item {
-            SectionLabel("STEP 2 / CONNECT YOUR ACCOUNT")
+            SectionLabel("Connect account")
             Text(
                 text = "Sign in to Linkora.",
-                modifier = Modifier.padding(top = 12.dp),
+                modifier = Modifier.padding(top = 8.dp),
                 style = MaterialTheme.typography.headlineLarge,
             )
             Text(
                 text = "Your browser handles the password. After approval, it returns you to this app automatically.",
-                modifier = Modifier.padding(top = 12.dp),
+                modifier = Modifier.padding(top = 8.dp),
                 color = MutedText,
                 style = MaterialTheme.typography.bodyLarge,
             )
@@ -607,12 +601,12 @@ private fun WebSignInScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.medium,
-                border = BorderStroke(1.dp, StrongBorder),
+                border = BorderStroke(1.dp, PaleStone),
                 colors = CardDefaults.cardColors(containerColor = PaperRaised),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             ) {
-                Column(modifier = Modifier.padding(18.dp)) {
-                    SectionLabel("PROJECT TO OPEN")
+                Column(modifier = Modifier.padding(16.dp)) {
+                    SectionLabel("Project to open")
                     Text(
                         text = selectedProject.name,
                         modifier = Modifier.padding(top = 10.dp),
@@ -800,25 +794,23 @@ private fun WorkspaceScreen(
         )
     }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(
-            start = 20.dp,
-            top = 32.dp,
-            end = 20.dp,
-            bottom = 24.dp,
-        ),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
-    ) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val sidePadding = ((maxWidth - 680.dp) / 2).coerceAtLeast(20.dp)
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                start = sidePadding,
+                top = 20.dp,
+                end = sidePadding,
+                bottom = 24.dp,
+            ),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
         item {
-            SetupProgress(currentStep = 3)
-        }
-
-        item {
-            SectionLabel("STEP 3 / RUN YOUR PROJECT")
+            SectionLabel("Project workspace")
             Text(
                 text = workspace.name,
-                modifier = Modifier.padding(top = 12.dp),
+                modifier = Modifier.padding(top = 8.dp),
                 style = MaterialTheme.typography.headlineLarge,
             )
             Text(
@@ -830,7 +822,7 @@ private fun WorkspaceScreen(
                     else ->
                         "Start the project, then open its preview."
                 },
-                modifier = Modifier.padding(top = 12.dp),
+                modifier = Modifier.padding(top = 6.dp),
                 color = MutedText,
                 style = MaterialTheme.typography.bodyLarge,
             )
@@ -871,34 +863,51 @@ private fun WorkspaceScreen(
         }
 
         item {
-            ActionButton(
-                label = if (showTechnicalDetails) {
-                    "Hide project details"
-                } else {
-                    "Show project details"
-                },
-                onClick = { showTechnicalDetails = !showTechnicalDetails },
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                style = ActionStyle.Neutral,
-            )
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Project files and settings",
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = workspace.visibleLocation,
+                        modifier = Modifier.padding(top = 2.dp),
+                        color = MutedText,
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                ActionButton(
+                    label = if (showTechnicalDetails) "Hide" else "Details",
+                    onClick = { showTechnicalDetails = !showTechnicalDetails },
+                    modifier = Modifier.padding(start = 12.dp),
+                    style = ActionStyle.Neutral,
+                    compact = true,
+                )
+            }
         }
 
         if (showTechnicalDetails) item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.medium,
-                border = BorderStroke(1.dp, StrongBorder),
+                border = BorderStroke(1.dp, PaleStone),
                 colors = CardDefaults.cardColors(containerColor = PaperRaised),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             ) {
-                Column(modifier = Modifier.padding(18.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            SectionLabel("PROJECT")
+                            SectionLabel("Project details")
                             Text(
                                 text = workspace.name,
                                 modifier = Modifier.padding(top = 8.dp),
@@ -976,13 +985,13 @@ private fun WorkspaceScreen(
 
         if (showTechnicalDetails) item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                SectionLabel("PROJECT FILES")
+                SectionLabel("Project files")
                 workspace.files.forEach { fileName ->
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         color = PaperRaised,
                         shape = MaterialTheme.shapes.small,
-                        border = BorderStroke(1.dp, StrongBorder),
+                        border = BorderStroke(1.dp, PaleStone),
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 13.dp),
@@ -1014,24 +1023,27 @@ private fun WorkspaceScreen(
                     .windowInsetsPadding(WindowInsets.navigationBars),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                SectionLabel("PUBLISH")
-                ActionButton(
-                    label = "Assign Linkora URL",
-                    onClick = onAssignUrl,
-                    enabled = originReady,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Text(
-                    text = if (originReady) {
-                        "Route a Linkora hostname to this server after checking the local preview."
-                    } else {
-                        "Start the ${if (workspace.kind == ProjectKind.Php) "PHP" else "Node.js"} runtime before assigning a public URL."
-                    },
-                    color = MutedText,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+                SectionLabel("Publish online")
+                if (originReady) {
+                    ActionButton(
+                        label = "Assign Linkora URL",
+                        onClick = onAssignUrl,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Text(
+                        text = "Route a Linkora hostname to the project running on this phone.",
+                        color = MutedText,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                } else {
+                    Text(
+                        text = "Start this project to make publishing available.",
+                        color = MutedText,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
                 HorizontalDivider(color = PaleStone)
-                SectionLabel("ACCOUNT")
+                SectionLabel("Account")
                 Text(
                     text = "Connected as $accountEmail",
                     modifier = Modifier.fillMaxWidth(),
@@ -1043,15 +1055,35 @@ private fun WorkspaceScreen(
                     onClick = onChangeProject,
                     modifier = Modifier.fillMaxWidth(),
                     style = ActionStyle.Neutral,
+                    compact = true,
                 )
                 ActionButton(
                     label = "Sign out",
                     onClick = onSignOut,
                     modifier = Modifier.fillMaxWidth(),
                     style = ActionStyle.Destructive,
+                    compact = true,
                 )
             }
         }
+        }
+    }
+}
+
+@Composable
+private fun RuntimeStatusBadge(label: String, error: Boolean = false) {
+    Surface(
+        color = if (error) OxbloodSoft else Color(0xFFF0F2EC),
+        shape = MaterialTheme.shapes.small,
+        border = BorderStroke(1.dp, if (error) Oxblood else DustyOlive),
+    ) {
+        Text(
+            text = label.lowercase().replaceFirstChar { it.uppercase() },
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+            color = if (error) Oxblood else DustyOlive,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+        )
     }
 }
 
@@ -1065,10 +1097,10 @@ private fun StaticServerPanel(
         modifier = Modifier.fillMaxWidth(),
         color = PaperRaised,
         shape = MaterialTheme.shapes.medium,
-        border = BorderStroke(1.dp, StrongBorder),
+        border = BorderStroke(1.dp, PaleStone),
     ) {
-        Column(modifier = Modifier.padding(18.dp)) {
-            SectionLabel("STATIC SERVER")
+        Column(modifier = Modifier.padding(16.dp)) {
+            SectionLabel("Local server")
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1077,13 +1109,7 @@ private fun StaticServerPanel(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text("Serving locally", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    text = "RUNNING",
-                    color = DustyOlive,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Black,
-                )
+                RuntimeStatusBadge("Running")
             }
             Text(
                 text = "Your selected folder is being served from this phone.",
@@ -1106,6 +1132,7 @@ private fun StaticServerPanel(
                     .fillMaxWidth()
                     .padding(top = 10.dp),
                 style = ActionStyle.Secondary,
+                compact = true,
             )
             Text(
                 text = "Select a folder that contains index.html.",
@@ -1134,10 +1161,10 @@ private fun NodeRuntimePanel(
         modifier = Modifier.fillMaxWidth(),
         color = PaperRaised,
         shape = MaterialTheme.shapes.medium,
-        border = BorderStroke(1.dp, if (isError) Oxblood else StrongBorder),
+        border = BorderStroke(1.dp, if (isError) Oxblood else PaleStone),
     ) {
-        Column(modifier = Modifier.padding(18.dp)) {
-            SectionLabel("NODE.JS RUNTIME")
+        Column(modifier = Modifier.padding(16.dp)) {
+            SectionLabel("Node.js runtime")
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1157,13 +1184,7 @@ private fun NodeRuntimePanel(
                     },
                     style = MaterialTheme.typography.titleMedium,
                 )
-                Text(
-                    text = state.phase.name.uppercase(),
-                    color = if (isError) Oxblood else DustyOlive,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Black,
-                )
+                RuntimeStatusBadge(state.phase.name, isError)
             }
             Text(
                 text = state.message,
@@ -1181,13 +1202,6 @@ private fun NodeRuntimePanel(
                     value = state.memoryMb?.let { "$it MB" } ?: "Measuring",
                 )
             }
-            Text(
-                text = "Run only projects you trust. Node.js code runs locally with Linkora's app permissions.",
-                modifier = Modifier.padding(top = 8.dp),
-                color = MutedText,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-
             ActionButton(
                 label = if (state.isRunning) "Open project preview" else "Start project",
                 onClick = if (state.isRunning) onPreview else onStart,
@@ -1243,27 +1257,32 @@ private fun NodeRuntimePanel(
                     .fillMaxWidth()
                     .padding(top = 10.dp),
                 style = ActionStyle.Neutral,
+                compact = true,
             )
 
-            ActionButton(
-                label = "Choose another folder",
-                onClick = onChooseProject,
-                enabled = !state.isBusy,
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 10.dp),
-                style = ActionStyle.Neutral,
-            )
-
-            if (state.logs.isNotEmpty()) {
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
                 ActionButton(
-                    label = if (showLogs) "Hide runtime log" else "Show runtime log",
-                    onClick = { showLogs = !showLogs },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 10.dp),
+                    label = "Project folder",
+                    onClick = onChooseProject,
+                    enabled = !state.isBusy,
+                    modifier = Modifier.weight(1f),
                     style = ActionStyle.Neutral,
+                    compact = true,
                 )
+                if (state.logs.isNotEmpty()) {
+                    ActionButton(
+                        label = if (showLogs) "Hide logs" else "Runtime logs",
+                        onClick = { showLogs = !showLogs },
+                        modifier = Modifier.weight(1f),
+                        style = ActionStyle.Neutral,
+                        compact = true,
+                    )
+                }
             }
             if (showLogs && state.logs.isNotEmpty()) {
                 Text(
@@ -1312,10 +1331,10 @@ private fun PhpRuntimePanel(
         modifier = Modifier.fillMaxWidth(),
         color = PaperRaised,
         shape = MaterialTheme.shapes.medium,
-        border = BorderStroke(1.dp, if (isError) Oxblood else StrongBorder),
+        border = BorderStroke(1.dp, if (isError) Oxblood else PaleStone),
     ) {
-        Column(modifier = Modifier.padding(18.dp)) {
-            SectionLabel("PHP RUNTIME")
+        Column(modifier = Modifier.padding(16.dp)) {
+            SectionLabel("PHP runtime")
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1334,13 +1353,7 @@ private fun PhpRuntimePanel(
                     },
                     style = MaterialTheme.typography.titleMedium,
                 )
-                Text(
-                    text = state.phase.name.uppercase(),
-                    color = if (isError) Oxblood else DustyOlive,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Black,
-                )
+                RuntimeStatusBadge(state.phase.name, isError)
             }
             Text(
                 text = state.message,
@@ -1358,13 +1371,6 @@ private fun PhpRuntimePanel(
                     value = state.memoryMb?.let { "$it MB" } ?: "Measuring",
                 )
             }
-            Text(
-                text = "PHP code runs locally with Linkora's app permissions. Only run projects you trust.",
-                modifier = Modifier.padding(top = 8.dp),
-                color = MutedText,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-
             ActionButton(
                 label = if (state.isRunning) "Open project preview" else "Start project",
                 onClick = if (state.isRunning) onPreview else onStart,
@@ -1408,25 +1414,29 @@ private fun PhpRuntimePanel(
                 )
             }
 
-            ActionButton(
-                label = "Choose another folder",
-                onClick = onChooseProject,
-                enabled = !state.isBusy,
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 10.dp),
-                style = ActionStyle.Neutral,
-            )
-
-            if (state.logs.isNotEmpty()) {
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
                 ActionButton(
-                    label = if (showLogs) "Hide runtime log" else "Show runtime log",
-                    onClick = { showLogs = !showLogs },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 10.dp),
+                    label = "Project folder",
+                    onClick = onChooseProject,
+                    enabled = !state.isBusy,
+                    modifier = Modifier.weight(1f),
                     style = ActionStyle.Neutral,
+                    compact = true,
                 )
+                if (state.logs.isNotEmpty()) {
+                    ActionButton(
+                        label = if (showLogs) "Hide logs" else "Runtime logs",
+                        onClick = { showLogs = !showLogs },
+                        modifier = Modifier.weight(1f),
+                        style = ActionStyle.Neutral,
+                        compact = true,
+                    )
+                }
             }
             if (showLogs && state.logs.isNotEmpty()) {
                 Text(
@@ -1648,7 +1658,7 @@ private fun ReadyPublishPanel(
                     modifier = Modifier.fillMaxWidth(),
                     color = PaperRaised,
                     shape = MaterialTheme.shapes.small,
-                    border = BorderStroke(1.dp, StrongBorder),
+                    border = BorderStroke(1.dp, PaleStone),
                 ) {
                     Row(
                         modifier = Modifier.padding(14.dp),
@@ -1837,7 +1847,7 @@ private fun StatusPanel(
         modifier = Modifier.fillMaxWidth(),
         color = PaperRaised,
         shape = MaterialTheme.shapes.small,
-        border = BorderStroke(1.dp, if (error) Oxblood else StrongBorder),
+        border = BorderStroke(1.dp, if (error) Oxblood else PaleStone),
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             SectionLabel(label)
@@ -1859,11 +1869,11 @@ private fun AuthenticationStatusCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
-        border = BorderStroke(1.dp, StrongBorder),
+        border = BorderStroke(1.dp, PaleStone),
         colors = CardDefaults.cardColors(containerColor = PaperRaised),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
     ) {
-        Column(modifier = Modifier.padding(18.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
             when (authState) {
                 AuthUiState.Restoring -> {
                     SectionLabel("CHECKING SESSION")
@@ -1962,7 +1972,7 @@ private fun ActionButton(
     val colors = when (style) {
         ActionStyle.Primary -> ButtonDefaults.buttonColors(
             containerColor = Oxblood,
-            contentColor = WarmPaper,
+            contentColor = PaperRaised,
             disabledContainerColor = DisabledSurface,
             disabledContentColor = DisabledText,
         )
@@ -1973,7 +1983,7 @@ private fun ActionButton(
             disabledContentColor = DisabledText,
         )
         ActionStyle.Neutral -> ButtonDefaults.buttonColors(
-            containerColor = ActionSurface,
+            containerColor = PaperRaised,
             contentColor = Charcoal,
             disabledContainerColor = DisabledSurface,
             disabledContentColor = DisabledText,
@@ -1991,19 +2001,19 @@ private fun ActionButton(
             1.dp,
             if (enabled) Oxblood else StrongBorder,
         )
-        ActionStyle.Neutral -> BorderStroke(1.dp, StrongBorder)
+        ActionStyle.Neutral -> BorderStroke(1.dp, PaleStone)
     }
 
     Button(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.heightIn(min = if (compact) 44.dp else 50.dp),
+        modifier = modifier.heightIn(min = if (compact) 42.dp else 48.dp),
         shape = MaterialTheme.shapes.small,
         colors = colors,
         border = border,
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
-            horizontal = if (compact) 14.dp else 18.dp,
-            vertical = 10.dp,
+            horizontal = if (compact) 12.dp else 16.dp,
+            vertical = 8.dp,
         ),
     ) {
         Text(label, style = MaterialTheme.typography.labelLarge)
@@ -2043,6 +2053,8 @@ private fun SectionLabel(text: String) {
     Text(
         text = text,
         color = Oxblood,
-        style = MaterialTheme.typography.labelSmall,
+        fontFamily = FontFamily.SansSerif,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.Bold,
     )
 }
