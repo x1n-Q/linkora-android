@@ -135,9 +135,19 @@ fun LinkoraApp(
 ) {
     var step by rememberSaveable { mutableStateOf(OnboardingStep.ProjectType) }
     var selectedProjectId by rememberSaveable { mutableStateOf<String?>("static") }
+    var choosingProject by rememberSaveable { mutableStateOf(false) }
     val selectedProject = projectTemplates.firstOrNull { it.id == selectedProjectId }
 
-    LaunchedEffect(authState, projectState) {
+    LaunchedEffect(authState, projectState, choosingProject) {
+        if (
+            authState is AuthUiState.SignedIn &&
+            projectState is ProjectWorkspaceState.Ready &&
+            step == OnboardingStep.ProjectType &&
+            !choosingProject
+        ) {
+            selectedProjectId = projectState.workspace.kind.name.lowercase()
+            step = OnboardingStep.Workspace
+        }
         if (
             authState is AuthUiState.SignedIn &&
             projectState is ProjectWorkspaceState.Ready &&
@@ -174,6 +184,7 @@ fun LinkoraApp(
                     runtimePackState = runtimePackState,
                     onSelectProject = { selectedProjectId = it.id },
                     onContinue = {
+                        choosingProject = false
                         onPrepareProject(requireNotNull(selectedProjectId))
                         step = OnboardingStep.WebSignIn
                     },
@@ -190,7 +201,10 @@ fun LinkoraApp(
                     onSignOut = onSignOut,
                     onRetryProject = onRetryProject,
                     onOpenWorkspace = { step = OnboardingStep.Workspace },
-                    onChangeProject = { step = OnboardingStep.ProjectType },
+                    onChangeProject = {
+                        choosingProject = true
+                        step = OnboardingStep.ProjectType
+                    },
                 )
 
                 OnboardingStep.Workspace -> {
@@ -209,7 +223,10 @@ fun LinkoraApp(
                                 onLoadPublish()
                                 step = OnboardingStep.Publish
                             },
-                            onChangeProject = { step = OnboardingStep.ProjectType },
+                            onChangeProject = {
+                                choosingProject = true
+                                step = OnboardingStep.ProjectType
+                            },
                             onSignOut = onSignOut,
                             onStartNode = onStartNode,
                             onRestartNode = onRestartNode,
@@ -279,6 +296,48 @@ private fun LinkoraHeader() {
 }
 
 @Composable
+private fun SetupProgress(currentStep: Int) {
+    val steps = listOf("Project", "Account", "Run")
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        steps.forEachIndexed { index, label ->
+            val stepNumber = index + 1
+            val active = stepNumber <= currentStep
+            Column(
+                modifier = Modifier.weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Surface(
+                    modifier = Modifier.size(30.dp),
+                    shape = MaterialTheme.shapes.large,
+                    color = if (active) Oxblood else PaperRaised,
+                    border = BorderStroke(1.dp, if (active) Oxblood else StrongBorder),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = stepNumber.toString(),
+                            color = if (active) WarmPaper else MutedText,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black,
+                        )
+                    }
+                }
+                Text(
+                    text = label,
+                    modifier = Modifier.padding(top = 6.dp),
+                    color = if (active) Charcoal else MutedText,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun ProjectTypeScreen(
     selectedProjectId: String?,
     runtimePackState: RuntimePackUiState,
@@ -296,15 +355,19 @@ private fun ProjectTypeScreen(
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         item {
+            SetupProgress(currentStep = 1)
+        }
+
+        item {
             Column(modifier = Modifier.fillMaxWidth()) {
-                SectionLabel("LOCAL PROJECT SETUP")
+                SectionLabel("STEP 1 / CHOOSE A PROJECT")
                 Text(
-                    text = "What are you building?",
+                    text = "What kind of project is this?",
                     modifier = Modifier.padding(top = 12.dp),
                     style = MaterialTheme.typography.headlineLarge,
                 )
                 Text(
-                    text = "Choose a static site, Node.js server, or PHP application to run directly on this phone. Runtime packs stay separate and optional.",
+                    text = "Choose the option that matches the files you want to run on this phone.",
                     modifier = Modifier.padding(top = 12.dp),
                     color = MutedText,
                     style = MaterialTheme.typography.bodyLarge,
@@ -327,7 +390,7 @@ private fun ProjectTypeScreen(
                     .windowInsetsPadding(WindowInsets.navigationBars),
             ) {
                 ActionButton(
-                    label = "Continue",
+                    label = "Continue with ${projectTemplates.firstOrNull { it.id == selectedProjectId }?.name ?: "project"}",
                     onClick = onContinue,
                     enabled = selectedProjectId != null &&
                         (selectedProjectId != "php" ||
@@ -335,7 +398,11 @@ private fun ProjectTypeScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
-                    text = "Node.js can use its verified pack or built-in fallback. PHP requires the separate verified PHP Runtime Pack.",
+                    text = if (selectedProjectId == "php") {
+                        "PHP uses the separately installed Linkora PHP Runtime Pack."
+                    } else {
+                        "You can select your existing project folder after setup."
+                    },
                     modifier = Modifier.padding(top = 12.dp),
                     color = MutedText,
                     style = MaterialTheme.typography.bodyMedium,
@@ -518,14 +585,18 @@ private fun WebSignInScreen(
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         item {
-            SectionLabel("SECURE WEB SIGN-IN")
+            SetupProgress(currentStep = 2)
+        }
+
+        item {
+            SectionLabel("STEP 2 / CONNECT YOUR ACCOUNT")
             Text(
-                text = "Connect your Linkora account.",
+                text = "Sign in to Linkora.",
                 modifier = Modifier.padding(top = 12.dp),
                 style = MaterialTheme.typography.headlineLarge,
             )
             Text(
-                text = "Authentication opens on linkora.top in your browser. The Android app never receives your password.",
+                text = "Your browser handles the password. After approval, it returns you to this app automatically.",
                 modifier = Modifier.padding(top = 12.dp),
                 color = MutedText,
                 style = MaterialTheme.typography.bodyLarge,
@@ -541,7 +612,7 @@ private fun WebSignInScreen(
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             ) {
                 Column(modifier = Modifier.padding(18.dp)) {
-                    SectionLabel("SELECTED PROJECT")
+                    SectionLabel("PROJECT TO OPEN")
                     Text(
                         text = selectedProject.name,
                         modifier = Modifier.padding(top = 10.dp),
@@ -610,7 +681,7 @@ private fun WebSignInScreen(
                             is ProjectWorkspaceState.Error -> "Retry project setup"
                             is ProjectWorkspaceState.Ready -> "Open local project"
                         }
-                        else -> "Continue in browser"
+                        else -> "Sign in with browser"
                     },
                     onClick = when {
                         authState is AuthUiState.SignedIn &&
@@ -647,7 +718,7 @@ private fun WebSignInScreen(
                     )
                 }
                 ActionButton(
-                    label = "Change project type",
+                    label = "Choose a different project",
                     onClick = onChangeProject,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -680,6 +751,7 @@ private fun WorkspaceScreen(
     onStopPhp: () -> Unit,
 ) {
     var showNativeModuleWarning by rememberSaveable { mutableStateOf(false) }
+    var showTechnicalDetails by rememberSaveable { mutableStateOf(false) }
     val originReady = when (workspace.kind) {
         ProjectKind.Static -> true
         ProjectKind.Node -> nodeRuntimeState.isRunning
@@ -739,36 +811,24 @@ private fun WorkspaceScreen(
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         item {
-            SectionLabel(
-                when (workspace.kind) {
-                    ProjectKind.Static -> "LOCAL STATIC WORKSPACE"
-                    ProjectKind.Node -> "LOCAL NODE.JS WORKSPACE"
-                    ProjectKind.Php -> "LOCAL PHP WORKSPACE"
-                },
-            )
+            SetupProgress(currentStep = 3)
+        }
+
+        item {
+            SectionLabel("STEP 3 / RUN YOUR PROJECT")
             Text(
-                text = when (workspace.kind) {
-                    ProjectKind.Static -> "Your project is ready."
-                    ProjectKind.Node -> "Run your Node.js project."
-                    ProjectKind.Php -> "Run your PHP project."
-                },
+                text = workspace.name,
                 modifier = Modifier.padding(top = 12.dp),
                 style = MaterialTheme.typography.headlineLarge,
             )
             Text(
                 text = when {
-                    workspace.kind == ProjectKind.Node && workspace.isStarter ->
-                        "The Node.js sample is stored in Downloads. Edit it in Files, then restart Node.js to sync and run the latest source."
-                    workspace.kind == ProjectKind.Node ->
-                        "Edit the selected folder, then restart Node.js to sync and run the latest source."
-                    workspace.kind == ProjectKind.Php && workspace.isStarter ->
-                        "The PHP sample is stored in Downloads. Edit it in Files, then restart PHP to sync and run the latest source."
-                    workspace.kind == ProjectKind.Php ->
-                        "Edit the selected folder, then restart PHP to sync and run the latest source."
-                    workspace.isStarter ->
-                        "This starter is stored in Downloads. Choose it or another folder in Files, then Linkora will serve the real files inside it."
+                    workspace.kind == ProjectKind.Static ->
+                        "Your website is ready. Open the preview or choose another folder."
+                    originReady ->
+                        "It is running on this phone. Preview it or assign a public Linkora URL."
                     else ->
-                        "Linkora is serving this folder directly. Edit its files, then reload the local preview."
+                        "Start the project, then open its preview."
                 },
                 modifier = Modifier.padding(top = 12.dp),
                 color = MutedText,
@@ -783,6 +843,47 @@ private fun WorkspaceScreen(
         }
 
         item {
+            when (workspace.kind) {
+                ProjectKind.Static -> StaticServerPanel(
+                    workspace = workspace,
+                    onPreview = onPreview,
+                    onChooseProject = onOpenFiles,
+                )
+                ProjectKind.Node -> NodeRuntimePanel(
+                    workspace = workspace,
+                    state = nodeRuntimeState,
+                    onPreview = onPreview,
+                    onChooseProject = onOpenFiles,
+                    onStart = onStartNode,
+                    onRestart = onRestartNode,
+                    onStop = onStopNode,
+                    onInstallDependencies = { showNativeModuleWarning = true },
+                )
+                ProjectKind.Php -> PhpRuntimePanel(
+                    state = phpRuntimeState,
+                    onPreview = onPreview,
+                    onChooseProject = onOpenFiles,
+                    onStart = onStartPhp,
+                    onRestart = onRestartPhp,
+                    onStop = onStopPhp,
+                )
+            }
+        }
+
+        item {
+            ActionButton(
+                label = if (showTechnicalDetails) {
+                    "Hide project details"
+                } else {
+                    "Show project details"
+                },
+                onClick = { showTechnicalDetails = !showTechnicalDetails },
+                modifier = Modifier.fillMaxWidth(),
+                style = ActionStyle.Neutral,
+            )
+        }
+
+        if (showTechnicalDetails) item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = MaterialTheme.shapes.medium,
@@ -862,7 +963,7 @@ private fun WorkspaceScreen(
             }
         }
 
-        if (workspace.sqliteCompatibilityDrivers.isNotEmpty()) {
+        if (showTechnicalDetails && workspace.sqliteCompatibilityDrivers.isNotEmpty()) {
             item {
                 StatusPanel(
                     label = "SQLITE COMPATIBILITY",
@@ -873,35 +974,7 @@ private fun WorkspaceScreen(
             }
         }
 
-        item {
-            when (workspace.kind) {
-                ProjectKind.Static -> StaticServerPanel(
-                    workspace = workspace,
-                    onPreview = onPreview,
-                    onChooseProject = onOpenFiles,
-                )
-                ProjectKind.Node -> NodeRuntimePanel(
-                    workspace = workspace,
-                    state = nodeRuntimeState,
-                    onPreview = onPreview,
-                    onChooseProject = onOpenFiles,
-                    onStart = onStartNode,
-                    onRestart = onRestartNode,
-                    onStop = onStopNode,
-                    onInstallDependencies = { showNativeModuleWarning = true },
-                )
-                ProjectKind.Php -> PhpRuntimePanel(
-                    state = phpRuntimeState,
-                    onPreview = onPreview,
-                    onChooseProject = onOpenFiles,
-                    onStart = onStartPhp,
-                    onRestart = onRestartPhp,
-                    onStop = onStopPhp,
-                )
-            }
-        }
-
-        item {
+        if (showTechnicalDetails) item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SectionLabel("PROJECT FILES")
                 workspace.files.forEach { fileName ->
@@ -966,7 +1039,7 @@ private fun WorkspaceScreen(
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 ActionButton(
-                    label = "Change project type",
+                    label = "Choose a different project",
                     onClick = onChangeProject,
                     modifier = Modifier.fillMaxWidth(),
                     style = ActionStyle.Neutral,
@@ -1013,8 +1086,7 @@ private fun StaticServerPanel(
                 )
             }
             Text(
-                text = "Files are read directly from the selected folder. Changes appear after " +
-                    "reload, and client-side routes fall back to index.html.",
+                text = "Your selected folder is being served from this phone.",
                 modifier = Modifier.padding(top = 8.dp),
                 color = MutedText,
                 style = MaterialTheme.typography.bodyMedium,
@@ -1028,7 +1100,7 @@ private fun StaticServerPanel(
                     .padding(top = 12.dp),
             )
             ActionButton(
-                label = "Choose project folder",
+                label = "Choose another folder",
                 onClick = onChooseProject,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1036,7 +1108,7 @@ private fun StaticServerPanel(
                 style = ActionStyle.Secondary,
             )
             Text(
-                text = "Choose a folder containing index.html. A custom 404.html is supported.",
+                text = "Select a folder that contains index.html.",
                 modifier = Modifier.padding(top = 8.dp),
                 color = MutedText,
                 style = MaterialTheme.typography.bodyMedium,
@@ -1057,6 +1129,7 @@ private fun NodeRuntimePanel(
     onInstallDependencies: () -> Unit,
 ) {
     val isError = state.phase == NodeRuntimePhase.Error
+    var showLogs by rememberSaveable { mutableStateOf(false) }
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = PaperRaised,
@@ -1115,38 +1188,48 @@ private fun NodeRuntimePanel(
                 style = MaterialTheme.typography.bodyMedium,
             )
 
-            Row(
+            ActionButton(
+                label = if (state.isRunning) "Open project preview" else "Start project",
+                onClick = if (state.isRunning) onPreview else onStart,
+                enabled = !state.isBusy,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                ActionButton(
-                    label = if (state.isRunning) "Restart" else "Start",
-                    onClick = if (state.isRunning) onRestart else onStart,
-                    enabled = !state.isBusy,
-                    modifier = Modifier.weight(1f),
-                    compact = true,
-                )
+            )
+
+            if (state.isRunning) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    ActionButton(
+                        label = "Restart",
+                        onClick = onRestart,
+                        enabled = !state.isBusy,
+                        modifier = Modifier.weight(1f),
+                        style = ActionStyle.Secondary,
+                        compact = true,
+                    )
+                    ActionButton(
+                        label = "Stop",
+                        onClick = onStop,
+                        modifier = Modifier.weight(1f),
+                        style = ActionStyle.Destructive,
+                        compact = true,
+                    )
+                }
+            } else if (state.isBusy) {
                 ActionButton(
                     label = "Stop",
                     onClick = onStop,
-                    enabled = state.isRunning || state.isBusy,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp),
                     style = ActionStyle.Destructive,
-                    compact = true,
                 )
             }
-
-            ActionButton(
-                label = if (state.isRunning) "Open preview" else "Start Node.js to preview",
-                onClick = onPreview,
-                enabled = state.isRunning,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 10.dp),
-                style = ActionStyle.Secondary,
-            )
 
             ActionButton(
                 label = if (workspace.hasDependencies) {
@@ -1163,7 +1246,7 @@ private fun NodeRuntimePanel(
             )
 
             ActionButton(
-                label = "Choose project folder",
+                label = "Choose another folder",
                 onClick = onChooseProject,
                 enabled = !state.isBusy,
                 modifier = Modifier
@@ -1173,12 +1256,19 @@ private fun NodeRuntimePanel(
             )
 
             if (state.logs.isNotEmpty()) {
-                HorizontalDivider(
-                    modifier = Modifier.padding(vertical = 16.dp),
-                    color = PaleStone,
+                ActionButton(
+                    label = if (showLogs) "Hide runtime log" else "Show runtime log",
+                    onClick = { showLogs = !showLogs },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp),
+                    style = ActionStyle.Neutral,
                 )
+            }
+            if (showLogs && state.logs.isNotEmpty()) {
                 Text(
                     text = "RUNTIME LOG",
+                    modifier = Modifier.padding(top = 16.dp),
                     color = MutedText,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 9.sp,
@@ -1217,6 +1307,7 @@ private fun PhpRuntimePanel(
     onStop: () -> Unit,
 ) {
     val isError = state.phase == PhpRuntimePhase.Error
+    var showLogs by rememberSaveable { mutableStateOf(false) }
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = PaperRaised,
@@ -1274,41 +1365,51 @@ private fun PhpRuntimePanel(
                 style = MaterialTheme.typography.bodyMedium,
             )
 
-            Row(
+            ActionButton(
+                label = if (state.isRunning) "Open project preview" else "Start project",
+                onClick = if (state.isRunning) onPreview else onStart,
+                enabled = !state.isBusy,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                ActionButton(
-                    label = if (state.isRunning) "Restart" else "Start",
-                    onClick = if (state.isRunning) onRestart else onStart,
-                    enabled = !state.isBusy,
-                    modifier = Modifier.weight(1f),
-                    compact = true,
-                )
+            )
+
+            if (state.isRunning) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    ActionButton(
+                        label = "Restart",
+                        onClick = onRestart,
+                        enabled = !state.isBusy,
+                        modifier = Modifier.weight(1f),
+                        style = ActionStyle.Secondary,
+                        compact = true,
+                    )
+                    ActionButton(
+                        label = "Stop",
+                        onClick = onStop,
+                        modifier = Modifier.weight(1f),
+                        style = ActionStyle.Destructive,
+                        compact = true,
+                    )
+                }
+            } else if (state.isBusy) {
                 ActionButton(
                     label = "Stop",
                     onClick = onStop,
-                    enabled = state.isRunning || state.isBusy,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp),
                     style = ActionStyle.Destructive,
-                    compact = true,
                 )
             }
 
             ActionButton(
-                label = if (state.isRunning) "Open preview" else "Start PHP to preview",
-                onClick = onPreview,
-                enabled = state.isRunning,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 10.dp),
-                style = ActionStyle.Secondary,
-            )
-
-            ActionButton(
-                label = "Choose project folder",
+                label = "Choose another folder",
                 onClick = onChooseProject,
                 enabled = !state.isBusy,
                 modifier = Modifier
@@ -1318,12 +1419,19 @@ private fun PhpRuntimePanel(
             )
 
             if (state.logs.isNotEmpty()) {
-                HorizontalDivider(
-                    modifier = Modifier.padding(vertical = 16.dp),
-                    color = PaleStone,
+                ActionButton(
+                    label = if (showLogs) "Hide runtime log" else "Show runtime log",
+                    onClick = { showLogs = !showLogs },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp),
+                    style = ActionStyle.Neutral,
                 )
+            }
+            if (showLogs && state.logs.isNotEmpty()) {
                 Text(
                     text = "RUNTIME LOG",
+                    modifier = Modifier.padding(top = 16.dp),
                     color = MutedText,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 9.sp,
