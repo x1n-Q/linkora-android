@@ -23,6 +23,7 @@ import top.linkora.mobile.auth.LinkoraAuthViewModel
 import top.linkora.mobile.connector.TunnelConnectorService
 import top.linkora.mobile.connector.TunnelConnectorStatus
 import top.linkora.mobile.node.NodeRuntimeViewModel
+import top.linkora.mobile.php.PhpRuntimeViewModel
 import top.linkora.mobile.project.ProjectKind
 import top.linkora.mobile.project.ProjectWorkspaceState
 import top.linkora.mobile.project.ProjectWorkspaceViewModel
@@ -36,13 +37,14 @@ class MainActivity : ComponentActivity() {
     private val projectViewModel: ProjectWorkspaceViewModel by viewModels()
     private val publishViewModel: PublishViewModel by viewModels()
     private val nodeRuntimeViewModel: NodeRuntimeViewModel by viewModels()
+    private val phpRuntimeViewModel: PhpRuntimeViewModel by viewModels()
     private val runtimePackViewModel: RuntimePackViewModel by viewModels()
-    private var pendingNodeAction: (() -> Unit)? = null
+    private var pendingRuntimeAction: (() -> Unit)? = null
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) {
-        pendingNodeAction?.invoke()
-        pendingNodeAction = null
+        pendingRuntimeAction?.invoke()
+        pendingRuntimeAction = null
     }
     private val projectFolderLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
@@ -59,9 +61,8 @@ class MainActivity : ComponentActivity() {
         }
         val activeWorkspace =
             (projectViewModel.uiState.value as? ProjectWorkspaceState.Ready)?.workspace
-        if (activeWorkspace?.kind == ProjectKind.Node) {
-            nodeRuntimeViewModel.stop()
-        }
+        if (activeWorkspace?.kind == ProjectKind.Node) nodeRuntimeViewModel.stop()
+        if (activeWorkspace?.kind == ProjectKind.Php) phpRuntimeViewModel.stop()
         TunnelConnectorService.stop(this)
         projectViewModel.selectProjectFolder(uri)
     }
@@ -85,6 +86,7 @@ class MainActivity : ComponentActivity() {
             val publishState by publishViewModel.uiState.collectAsState()
             val connectorState by TunnelConnectorStatus.state.collectAsState()
             val nodeRuntimeState by nodeRuntimeViewModel.uiState.collectAsState()
+            val phpRuntimeState by phpRuntimeViewModel.uiState.collectAsState()
             val runtimePackState by runtimePackViewModel.uiState.collectAsState()
 
             LaunchedEffect(authViewModel) {
@@ -98,6 +100,7 @@ class MainActivity : ComponentActivity() {
                     publishState = publishState,
                     connectorState = connectorState,
                     nodeRuntimeState = nodeRuntimeState,
+                    phpRuntimeState = phpRuntimeState,
                     runtimePackState = runtimePackState,
                     onStartSignIn = authViewModel::startSignIn,
                     onReopenBrowser = authViewModel::reopenBrowser,
@@ -107,9 +110,8 @@ class MainActivity : ComponentActivity() {
                     onPrepareProject = { projectId ->
                         val activeWorkspace =
                             (projectViewModel.uiState.value as? ProjectWorkspaceState.Ready)?.workspace
-                        if (activeWorkspace?.kind == ProjectKind.Node) {
-                            nodeRuntimeViewModel.stop()
-                        }
+                        if (activeWorkspace?.kind == ProjectKind.Node) nodeRuntimeViewModel.stop()
+                        if (activeWorkspace?.kind == ProjectKind.Php) phpRuntimeViewModel.stop()
                         TunnelConnectorService.stop(this)
                         projectViewModel.prepareProject(projectId)
                     },
@@ -128,6 +130,13 @@ class MainActivity : ComponentActivity() {
                     onInstallNodeDependencies = {
                         runWithRuntimeNotification(nodeRuntimeViewModel::installDependencies)
                     },
+                    onStartPhp = {
+                        runWithRuntimeNotification(phpRuntimeViewModel::start)
+                    },
+                    onRestartPhp = {
+                        runWithRuntimeNotification(phpRuntimeViewModel::restart)
+                    },
+                    onStopPhp = phpRuntimeViewModel::stop,
                 )
             }
         }
@@ -157,7 +166,7 @@ class MainActivity : ComponentActivity() {
             return
         }
 
-        pendingNodeAction = action
+        pendingRuntimeAction = action
         notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 

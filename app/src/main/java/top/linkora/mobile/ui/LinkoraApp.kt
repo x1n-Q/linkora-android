@@ -68,6 +68,8 @@ import top.linkora.mobile.model.ProjectTemplate
 import top.linkora.mobile.model.projectTemplates
 import top.linkora.mobile.node.NodeRuntimePhase
 import top.linkora.mobile.node.NodeRuntimeState
+import top.linkora.mobile.php.PhpRuntimePhase
+import top.linkora.mobile.php.PhpRuntimeState
 import top.linkora.mobile.project.ProjectWorkspace
 import top.linkora.mobile.project.ProjectKind
 import top.linkora.mobile.project.ProjectWorkspaceState
@@ -110,6 +112,7 @@ fun LinkoraApp(
     publishState: PublishUiState,
     connectorState: TunnelConnectorState,
     nodeRuntimeState: NodeRuntimeState,
+    phpRuntimeState: PhpRuntimeState,
     runtimePackState: RuntimePackUiState,
     onStartSignIn: () -> Unit,
     onReopenBrowser: () -> Unit,
@@ -126,6 +129,9 @@ fun LinkoraApp(
     onRestartNode: () -> Unit,
     onStopNode: () -> Unit,
     onInstallNodeDependencies: () -> Unit,
+    onStartPhp: () -> Unit,
+    onRestartPhp: () -> Unit,
+    onStopPhp: () -> Unit,
 ) {
     var step by rememberSaveable { mutableStateOf(OnboardingStep.ProjectType) }
     var selectedProjectId by rememberSaveable { mutableStateOf<String?>("static") }
@@ -196,6 +202,7 @@ fun LinkoraApp(
                             notice = readyProject.notice,
                             accountEmail = authState.session.email,
                             nodeRuntimeState = nodeRuntimeState,
+                            phpRuntimeState = phpRuntimeState,
                             onPreview = { step = OnboardingStep.Preview },
                             onOpenFiles = onOpenFiles,
                             onAssignUrl = {
@@ -208,6 +215,9 @@ fun LinkoraApp(
                             onRestartNode = onRestartNode,
                             onStopNode = onStopNode,
                             onInstallNodeDependencies = onInstallNodeDependencies,
+                            onStartPhp = onStartPhp,
+                            onRestartPhp = onRestartPhp,
+                            onStopPhp = onStopPhp,
                         )
                     }
                 }
@@ -294,7 +304,7 @@ private fun ProjectTypeScreen(
                     style = MaterialTheme.typography.headlineLarge,
                 )
                 Text(
-                    text = "Choose a static site or run a Node.js server directly on this phone. Additional runtimes remain separate and optional.",
+                    text = "Choose a static site, Node.js server, or PHP application to run directly on this phone. Runtime packs stay separate and optional.",
                     modifier = Modifier.padding(top = 12.dp),
                     color = MutedText,
                     style = MaterialTheme.typography.bodyLarge,
@@ -319,11 +329,13 @@ private fun ProjectTypeScreen(
                 ActionButton(
                     label = "Continue",
                     onClick = onContinue,
-                    enabled = selectedProjectId != null,
+                    enabled = selectedProjectId != null &&
+                        (selectedProjectId != "php" ||
+                            runtimePackState.php.state == RuntimePackState.Ready),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
-                    text = "Node.js uses a verified runtime pack when installed and keeps a built-in fallback during migration.",
+                    text = "Node.js can use its verified pack or built-in fallback. PHP requires the separate verified PHP Runtime Pack.",
                     modifier = Modifier.padding(top = 12.dp),
                     color = MutedText,
                     style = MaterialTheme.typography.bodyMedium,
@@ -388,13 +400,16 @@ private fun ProjectTemplateCard(
     runtimePackState: RuntimePackUiState,
     onSelect: () -> Unit,
 ) {
+    val runtimeAvailable = project.id != "php" ||
+        runtimePackState.php.state == RuntimePackState.Ready
+    val selectable = project.available && runtimeAvailable
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .selectable(
                 selected = selected,
-                onClick = { if (project.available) onSelect() },
-                enabled = project.available,
+                onClick = { if (selectable) onSelect() },
+                enabled = selectable,
                 role = Role.RadioButton,
             ),
         shape = MaterialTheme.shapes.medium,
@@ -442,6 +457,13 @@ private fun ProjectTemplateCard(
                 Text(
                     text = when {
                         !project.available -> "PLANNED / ${project.runtimePackage.orEmpty()}"
+                        project.id == "php" &&
+                            runtimePackState.php.state == RuntimePackState.Ready ->
+                            "RUNTIME PACK / PHP 8.4.27"
+                        project.id == "php" &&
+                            runtimePackState.php.state == RuntimePackState.Checking ->
+                            "CHECKING RUNTIME PACK"
+                        project.id == "php" -> "RUNTIME PACK REQUIRED"
                         project.id == "node" &&
                             runtimePackState.node.state == RuntimePackState.Ready ->
                             "RUNTIME PACK / ${project.runtimePackage}"
@@ -452,7 +474,7 @@ private fun ProjectTemplateCard(
                         else -> "AVAILABLE / NO RUNTIME REQUIRED"
                     },
                     modifier = Modifier.padding(top = 10.dp),
-                    color = if (project.available) DustyOlive else MutedText,
+                    color = if (selectable) DustyOlive else MutedText,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Bold,
@@ -460,7 +482,7 @@ private fun ProjectTemplateCard(
             }
             RadioButton(
                 selected = selected,
-                enabled = project.available,
+                enabled = selectable,
                 onClick = null,
                 colors = RadioButtonDefaults.colors(
                     selectedColor = Oxblood,
@@ -549,6 +571,14 @@ private fun WebSignInScreen(
                                 RuntimePackState.Missing -> "Built-in migration fallback"
                                 RuntimePackState.Checking -> "Checking runtime pack"
                             }
+                        } else if (selectedProject.id == "php") {
+                            when (runtimePackState.php.state) {
+                                RuntimePackState.Ready -> "Verified PHP Runtime Pack"
+                                RuntimePackState.Invalid -> "Runtime pack rejected"
+                                RuntimePackState.Incompatible -> "Runtime pack incompatible"
+                                RuntimePackState.Missing -> "PHP Runtime Pack required"
+                                RuntimePackState.Checking -> "Checking runtime pack"
+                            }
                         } else {
                             "Ready"
                         },
@@ -635,6 +665,7 @@ private fun WorkspaceScreen(
     notice: String?,
     accountEmail: String,
     nodeRuntimeState: NodeRuntimeState,
+    phpRuntimeState: PhpRuntimeState,
     onPreview: () -> Unit,
     onOpenFiles: () -> Unit,
     onAssignUrl: () -> Unit,
@@ -644,9 +675,16 @@ private fun WorkspaceScreen(
     onRestartNode: () -> Unit,
     onStopNode: () -> Unit,
     onInstallNodeDependencies: () -> Unit,
+    onStartPhp: () -> Unit,
+    onRestartPhp: () -> Unit,
+    onStopPhp: () -> Unit,
 ) {
     var showNativeModuleWarning by rememberSaveable { mutableStateOf(false) }
-    val originReady = workspace.kind == ProjectKind.Static || nodeRuntimeState.isRunning
+    val originReady = when (workspace.kind) {
+        ProjectKind.Static -> true
+        ProjectKind.Node -> nodeRuntimeState.isRunning
+        ProjectKind.Php -> phpRuntimeState.isRunning
+    }
 
     if (showNativeModuleWarning) {
         AlertDialog(
@@ -702,26 +740,35 @@ private fun WorkspaceScreen(
     ) {
         item {
             SectionLabel(
-                if (workspace.kind == ProjectKind.Node) "LOCAL NODE.JS WORKSPACE" else "LOCAL STATIC WORKSPACE",
+                when (workspace.kind) {
+                    ProjectKind.Static -> "LOCAL STATIC WORKSPACE"
+                    ProjectKind.Node -> "LOCAL NODE.JS WORKSPACE"
+                    ProjectKind.Php -> "LOCAL PHP WORKSPACE"
+                },
             )
             Text(
-                text = if (workspace.kind == ProjectKind.Node) {
-                    "Run your Node.js project."
-                } else {
-                    "Your project is ready."
+                text = when (workspace.kind) {
+                    ProjectKind.Static -> "Your project is ready."
+                    ProjectKind.Node -> "Run your Node.js project."
+                    ProjectKind.Php -> "Run your PHP project."
                 },
                 modifier = Modifier.padding(top = 12.dp),
                 style = MaterialTheme.typography.headlineLarge,
             )
             Text(
-                text = if (workspace.kind == ProjectKind.Node && workspace.isStarter) {
-                    "The Node.js sample is stored in Downloads. Edit it in Files, then restart Node.js to sync and run the latest source."
-                } else if (workspace.kind == ProjectKind.Node) {
-                    "Edit the selected folder, then restart Node.js to sync and run the latest source."
-                } else if (workspace.isStarter) {
-                    "This starter is stored in Downloads. Choose it or another folder in Files, then Linkora will serve the real files inside it."
-                } else {
-                    "Linkora is serving this folder directly. Edit its files, then reload the local preview."
+                text = when {
+                    workspace.kind == ProjectKind.Node && workspace.isStarter ->
+                        "The Node.js sample is stored in Downloads. Edit it in Files, then restart Node.js to sync and run the latest source."
+                    workspace.kind == ProjectKind.Node ->
+                        "Edit the selected folder, then restart Node.js to sync and run the latest source."
+                    workspace.kind == ProjectKind.Php && workspace.isStarter ->
+                        "The PHP sample is stored in Downloads. Edit it in Files, then restart PHP to sync and run the latest source."
+                    workspace.kind == ProjectKind.Php ->
+                        "Edit the selected folder, then restart PHP to sync and run the latest source."
+                    workspace.isStarter ->
+                        "This starter is stored in Downloads. Choose it or another folder in Files, then Linkora will serve the real files inside it."
+                    else ->
+                        "Linkora is serving this folder directly. Edit its files, then reload the local preview."
                 },
                 modifier = Modifier.padding(top = 12.dp),
                 color = MutedText,
@@ -763,10 +810,10 @@ private fun WorkspaceScreen(
                             border = BorderStroke(1.dp, DustyOlive),
                         ) {
                             Text(
-                                text = if (workspace.kind == ProjectKind.Node) {
-                                    nodeRuntimeState.phase.name.uppercase()
-                                } else {
-                                    "READY"
+                                text = when (workspace.kind) {
+                                    ProjectKind.Static -> "READY"
+                                    ProjectKind.Node -> nodeRuntimeState.phase.name.uppercase()
+                                    ProjectKind.Php -> phpRuntimeState.phase.name.uppercase()
                                 },
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
                                 color = DustyOlive,
@@ -806,6 +853,11 @@ private fun WorkspaceScreen(
                             )
                         }
                     }
+                    if (workspace.kind == ProjectKind.Php) {
+                        SummaryRow(label = "Runtime", value = "PHP 8.4.27")
+                        SummaryRow(label = "Entry", value = workspace.entryPoint ?: "index.php")
+                        SummaryRow(label = "Database", value = "PDO SQLite 3.47.2")
+                    }
                 }
             }
         }
@@ -821,9 +873,14 @@ private fun WorkspaceScreen(
             }
         }
 
-        if (workspace.kind == ProjectKind.Node) {
-            item {
-                NodeRuntimePanel(
+        item {
+            when (workspace.kind) {
+                ProjectKind.Static -> StaticServerPanel(
+                    workspace = workspace,
+                    onPreview = onPreview,
+                    onChooseProject = onOpenFiles,
+                )
+                ProjectKind.Node -> NodeRuntimePanel(
                     workspace = workspace,
                     state = nodeRuntimeState,
                     onPreview = onPreview,
@@ -833,13 +890,13 @@ private fun WorkspaceScreen(
                     onStop = onStopNode,
                     onInstallDependencies = { showNativeModuleWarning = true },
                 )
-            }
-        } else {
-            item {
-                StaticServerPanel(
-                    workspace = workspace,
+                ProjectKind.Php -> PhpRuntimePanel(
+                    state = phpRuntimeState,
                     onPreview = onPreview,
                     onChooseProject = onOpenFiles,
+                    onStart = onStartPhp,
+                    onRestart = onRestartPhp,
+                    onStop = onStopPhp,
                 )
             }
         }
@@ -895,7 +952,7 @@ private fun WorkspaceScreen(
                     text = if (originReady) {
                         "Route a Linkora hostname to this server after checking the local preview."
                     } else {
-                        "Start the Node.js runtime before assigning a public URL."
+                        "Start the ${if (workspace.kind == ProjectKind.Php) "PHP" else "Node.js"} runtime before assigning a public URL."
                     },
                     color = MutedText,
                     style = MaterialTheme.typography.bodyMedium,
@@ -1138,6 +1195,149 @@ private fun NodeRuntimePanel(
                         text = state.logs.takeLast(12).joinToString("\n") { line ->
                             line.take(320)
                         },
+                        modifier = Modifier.padding(14.dp),
+                        color = WarmPaper,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 10.sp,
+                        lineHeight = 15.sp,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PhpRuntimePanel(
+    state: PhpRuntimeState,
+    onPreview: () -> Unit,
+    onChooseProject: () -> Unit,
+    onStart: () -> Unit,
+    onRestart: () -> Unit,
+    onStop: () -> Unit,
+) {
+    val isError = state.phase == PhpRuntimePhase.Error
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = PaperRaised,
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, if (isError) Oxblood else StrongBorder),
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            SectionLabel("PHP RUNTIME")
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = when (state.phase) {
+                        PhpRuntimePhase.Idle -> "Ready to start"
+                        PhpRuntimePhase.Syncing -> "Syncing project"
+                        PhpRuntimePhase.Starting -> "Starting"
+                        PhpRuntimePhase.Running -> "Running"
+                        PhpRuntimePhase.Stopping -> "Stopping"
+                        PhpRuntimePhase.Error -> "Needs attention"
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    text = state.phase.name.uppercase(),
+                    color = if (isError) Oxblood else DustyOlive,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Black,
+                )
+            }
+            Text(
+                text = state.message,
+                modifier = Modifier.padding(top = 8.dp),
+                color = if (isError) Oxblood else MutedText,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            if (state.isRunning) {
+                SummaryRow(
+                    label = "Uptime",
+                    value = state.uptimeSeconds?.let(::formatRuntimeDuration) ?: "Starting",
+                )
+                SummaryRow(
+                    label = "Memory",
+                    value = state.memoryMb?.let { "$it MB" } ?: "Measuring",
+                )
+            }
+            Text(
+                text = "PHP code runs locally with Linkora's app permissions. Only run projects you trust.",
+                modifier = Modifier.padding(top = 8.dp),
+                color = MutedText,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                ActionButton(
+                    label = if (state.isRunning) "Restart" else "Start",
+                    onClick = if (state.isRunning) onRestart else onStart,
+                    enabled = !state.isBusy,
+                    modifier = Modifier.weight(1f),
+                    compact = true,
+                )
+                ActionButton(
+                    label = "Stop",
+                    onClick = onStop,
+                    enabled = state.isRunning || state.isBusy,
+                    modifier = Modifier.weight(1f),
+                    style = ActionStyle.Destructive,
+                    compact = true,
+                )
+            }
+
+            ActionButton(
+                label = if (state.isRunning) "Open preview" else "Start PHP to preview",
+                onClick = onPreview,
+                enabled = state.isRunning,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp),
+                style = ActionStyle.Secondary,
+            )
+
+            ActionButton(
+                label = "Choose project folder",
+                onClick = onChooseProject,
+                enabled = !state.isBusy,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp),
+                style = ActionStyle.Neutral,
+            )
+
+            if (state.logs.isNotEmpty()) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 16.dp),
+                    color = PaleStone,
+                )
+                Text(
+                    text = "RUNTIME LOG",
+                    color = MutedText,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    color = Charcoal,
+                    shape = MaterialTheme.shapes.small,
+                ) {
+                    Text(
+                        text = state.logs.takeLast(12).joinToString("\n") { it.take(320) },
                         modifier = Modifier.padding(14.dp),
                         color = WarmPaper,
                         fontFamily = FontFamily.Monospace,
