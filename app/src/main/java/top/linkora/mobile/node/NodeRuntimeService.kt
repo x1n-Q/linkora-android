@@ -30,6 +30,7 @@ import kotlinx.coroutines.launch
 import top.linkora.mobile.MainActivity
 import top.linkora.mobile.R
 import top.linkora.mobile.connector.TunnelConnectorService
+import top.linkora.mobile.php.PhpRuntimeService
 import top.linkora.mobile.project.ProjectServerService
 import top.linkora.mobile.project.ProjectWorkspaceManager
 
@@ -107,6 +108,7 @@ class NodeRuntimeService : Service() {
         operationJob?.cancel()
         stopRuntimeMonitor()
         terminateChildProcess()
+        PhpRuntimeService.stop(applicationContext)
         stopService(Intent(this, ProjectServerService::class.java))
         acquireWakeLock()
         startForeground(NOTIFICATION_ID, buildNotification("Preparing project"))
@@ -202,6 +204,7 @@ class NodeRuntimeService : Service() {
         stopRuntimeMonitor()
         terminateChildProcess()
         TunnelConnectorService.stop(applicationContext)
+        PhpRuntimeService.stop(applicationContext)
         stopService(Intent(this, ProjectServerService::class.java))
         startForeground(NOTIFICATION_ID, buildNotification("Preparing npm"))
 

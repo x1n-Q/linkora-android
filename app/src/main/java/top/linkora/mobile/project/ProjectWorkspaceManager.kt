@@ -86,6 +86,41 @@ class ProjectWorkspaceManager(private val context: Context) {
         )
     }
 
+    fun preparePhpLaunch(): PhpLaunchConfig {
+        check(activeKind() == ProjectKind.Php) { "Choose a PHP project first." }
+        val runtimeDirectory = phpRuntimeProjectDirectory().apply {
+            check(mkdirs() || isDirectory) {
+                "The private PHP workspace could not be created."
+            }
+        }
+
+        val selectedTree = selectedTreeUri(ProjectKind.Php)
+        val importedFiles = if (selectedTree != null) {
+            val rootId = DocumentsContract.getTreeDocumentId(selectedTree)
+            buildSet {
+                copyTree(
+                    treeUri = selectedTree,
+                    parentId = rootId,
+                    destination = runtimeDirectory,
+                    depth = 0,
+                    relativeParent = "",
+                    importedFiles = this,
+                )
+            }
+        } else {
+            copyStarterToRuntime(PHP_DEFINITION, runtimeDirectory)
+        }
+        updateImportedSourceManifest(runtimeDirectory, importedFiles)
+
+        check(File(runtimeDirectory, PHP_ENTRY_POINT).isFile) {
+            "No index.php file was found after project sync."
+        }
+        return PhpLaunchConfig(
+            projectDirectory = runtimeDirectory,
+            entryPoint = PHP_ENTRY_POINT,
+        )
+    }
+
     fun openProjectFile(requestPath: String): ProjectFile? {
         val safePath = requestPath
             .replace('\\', '/')
@@ -115,14 +150,13 @@ class ProjectWorkspaceManager(private val context: Context) {
     }
 
     private fun starterWorkspace(definition: ProjectDefinition): ProjectWorkspace {
-        val inspection = if (definition.kind == ProjectKind.Node) {
-            NodeInspection(
+        val inspection = when (definition.kind) {
+            ProjectKind.Node -> NodeInspection(
                 entryPoint = "server.js",
                 hasDependencies = false,
                 sqliteCompatibilityDrivers = emptyList(),
             )
-        } else {
-            null
+            else -> null
         }
         return ProjectWorkspace(
             name = definition.displayName,
@@ -135,7 +169,11 @@ class ProjectWorkspaceManager(private val context: Context) {
             localUrl = LOCAL_URL,
             isStarter = true,
             kind = definition.kind,
-            entryPoint = inspection?.entryPoint,
+            entryPoint = inspection?.entryPoint ?: if (definition.kind == ProjectKind.Php) {
+                PHP_ENTRY_POINT
+            } else {
+                null
+            },
             hasDependencies = inspection?.hasDependencies ?: false,
             sqliteCompatibilityDrivers = inspection?.sqliteCompatibilityDrivers.orEmpty(),
         )
@@ -181,6 +219,13 @@ class ProjectWorkspaceManager(private val context: Context) {
             }
 
             ProjectKind.Node -> inspectNodeTree(treeUri)
+
+            ProjectKind.Php -> {
+                check(children.any { it.name == PHP_ENTRY_POINT && !it.isDirectory }) {
+                    "Choose a folder containing an index.php file."
+                }
+                null
+            }
         }
 
         return ProjectWorkspace(
@@ -193,7 +238,11 @@ class ProjectWorkspaceManager(private val context: Context) {
             localUrl = LOCAL_URL,
             isStarter = false,
             kind = kind,
-            entryPoint = nodeInspection?.entryPoint,
+            entryPoint = nodeInspection?.entryPoint ?: if (kind == ProjectKind.Php) {
+                PHP_ENTRY_POINT
+            } else {
+                null
+            },
             hasDependencies = nodeInspection?.hasDependencies ?: false,
             sqliteCompatibilityDrivers = nodeInspection?.sqliteCompatibilityDrivers.orEmpty(),
         )
@@ -326,7 +375,7 @@ class ProjectWorkspaceManager(private val context: Context) {
     ) {
         check(depth <= MAX_TREE_DEPTH) { "The project folder is nested too deeply." }
         check(destination.mkdirs() || destination.isDirectory) {
-            "The private Node.js workspace could not be created."
+            "The private runtime workspace could not be created."
         }
         queryChildren(treeUri, parentId).forEach { entry ->
             if (entry.name in IGNORED_NODE_DIRECTORIES) return@forEach
@@ -380,7 +429,7 @@ class ProjectWorkspaceManager(private val context: Context) {
                 val downloadPath = definition.downloadPath +
                     if (parent.isBlank()) "" else "$parent/"
                 val uri = checkNotNull(findDownloadUri(fileName, downloadPath)) {
-                    "The editable Node.js starter file $relativePath is missing from Downloads."
+                    "The editable starter file $relativePath is missing from Downloads."
                 }
                 checkNotNull(context.contentResolver.openInputStream(uri))
             } else {
@@ -432,6 +481,15 @@ class ProjectWorkspaceManager(private val context: Context) {
         val destination = File(context.filesDir, "$NODE_RUNTIME_PROJECT_ROOT/$projectId")
         migrateLegacyRuntime(destination)
         return destination
+    }
+
+    private fun phpRuntimeProjectDirectory(): File {
+        val sourceKey = selectedTreeUri(ProjectKind.Php)?.toString() ?: "linkora-php-starter"
+        val projectId = MessageDigest.getInstance("SHA-256")
+            .digest(sourceKey.toByteArray())
+            .joinToString(separator = "") { byte -> "%02x".format(byte.toInt() and 0xff) }
+            .take(24)
+        return File(context.filesDir, "$PHP_RUNTIME_PROJECT_ROOT/$projectId")
     }
 
     private fun migrateLegacyRuntime(destination: File) {
@@ -607,6 +665,7 @@ class ProjectWorkspaceManager(private val context: Context) {
     private fun definitionFor(kind: ProjectKind): ProjectDefinition = when (kind) {
         ProjectKind.Static -> STATIC_DEFINITION
         ProjectKind.Node -> NODE_DEFINITION
+        ProjectKind.Php -> PHP_DEFINITION
     }
 
     private fun String.mimeType(): String = when (substringAfterLast('.').lowercase()) {
@@ -614,6 +673,7 @@ class ProjectWorkspaceManager(private val context: Context) {
         "css" -> "text/css; charset=utf-8"
         "js", "mjs", "cjs" -> "text/javascript; charset=utf-8"
         "json" -> "application/json; charset=utf-8"
+        "php" -> "application/x-httpd-php"
         "svg" -> "image/svg+xml"
         "png" -> "image/png"
         "jpg", "jpeg" -> "image/jpeg"
@@ -649,6 +709,13 @@ class ProjectWorkspaceManager(private val context: Context) {
                 "public/linkora-mark.svg",
             ),
         )
+        private val PHP_DEFINITION = ProjectDefinition(
+            kind = ProjectKind.Php,
+            slug = "linkora-php-sample",
+            displayName = "Linkora PHP Sample",
+            assetRoot = "starter-php",
+            files = listOf("index.php", "styles.css"),
+        )
         private val NODE_ENTRY_CANDIDATES = listOf(
             "server.js",
             "server.mjs",
@@ -664,6 +731,8 @@ class ProjectWorkspaceManager(private val context: Context) {
         private val IGNORED_NODE_DIRECTORIES = setOf("node_modules", ".git", ".linkora")
         private val SQLITE_COMPATIBILITY_DRIVERS = listOf("better-sqlite3", "sqlite3")
         private const val NODE_RUNTIME_PROJECT_ROOT = "node/projects"
+        private const val PHP_RUNTIME_PROJECT_ROOT = "php/projects"
+        private const val PHP_ENTRY_POINT = "index.php"
         private const val LEGACY_NODE_RUNTIME_PROJECT_PATH = "$NODE_RUNTIME_PROJECT_ROOT/active"
         private const val LINKORA_RUNTIME_DIRECTORY = ".linkora"
         private const val IMPORTED_SOURCE_MANIFEST = "imported-source-files.txt"

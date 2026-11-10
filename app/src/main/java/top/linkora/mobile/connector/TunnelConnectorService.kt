@@ -26,6 +26,7 @@ import kotlinx.coroutines.launch
 import top.linkora.mobile.MainActivity
 import top.linkora.mobile.R
 import top.linkora.mobile.node.NodeRuntimeStatus
+import top.linkora.mobile.php.PhpRuntimeStatus
 import top.linkora.mobile.project.ProjectKind
 import top.linkora.mobile.project.ProjectServerService
 import top.linkora.mobile.project.ProjectWorkspaceManager
@@ -151,6 +152,9 @@ class TunnelConnectorService : Service() {
             ProjectKind.Static -> ProjectServerService.start(applicationContext)
             ProjectKind.Node -> check(NodeRuntimeStatus.state.value.isRunning) {
                 "Start the Node.js project before publishing it."
+            }
+            ProjectKind.Php -> check(PhpRuntimeStatus.state.value.isRunning) {
+                "Start the PHP project before publishing it."
             }
         }
     }
