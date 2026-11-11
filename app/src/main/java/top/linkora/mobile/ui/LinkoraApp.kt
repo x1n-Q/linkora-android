@@ -35,6 +35,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -79,6 +80,10 @@ import top.linkora.mobile.publish.ManagedHostname
 import top.linkora.mobile.publish.PublishUiState
 import top.linkora.mobile.runtime.RuntimePackState
 import top.linkora.mobile.runtime.RuntimePackUiState
+import top.linkora.mobile.runtime.RuntimePackInspection
+import top.linkora.mobile.runtime.RuntimeDownloadPhase
+import top.linkora.mobile.runtime.RuntimeDownloadState
+import top.linkora.mobile.runtime.RuntimeDownloadUiState
 import top.linkora.mobile.ui.theme.Charcoal
 import top.linkora.mobile.ui.theme.DisabledSurface
 import top.linkora.mobile.ui.theme.DisabledText
@@ -116,6 +121,7 @@ fun LinkoraApp(
     phpRuntimeState: PhpRuntimeState,
     mariaDbRuntimeState: MariaDbRuntimeState,
     runtimePackState: RuntimePackUiState,
+    runtimeDownloadState: RuntimeDownloadUiState,
     onStartSignIn: () -> Unit,
     onReopenBrowser: () -> Unit,
     onCancelSignIn: () -> Unit,
@@ -137,11 +143,18 @@ fun LinkoraApp(
     onStartMariaDb: () -> Unit,
     onRestartMariaDb: () -> Unit,
     onStopMariaDb: () -> Unit,
+    onDownloadRuntime: (String) -> Unit,
+    onCancelRuntimeDownload: (String) -> Unit,
+    onInstallRuntime: (String) -> Unit,
+    onRemoveRuntimeInstaller: (String) -> Unit,
 ) {
     var step by rememberSaveable { mutableStateOf(OnboardingStep.ProjectType) }
     var selectedProjectId by rememberSaveable { mutableStateOf<String?>("static") }
     var choosingProject by rememberSaveable { mutableStateOf(false) }
+    var showRuntimeManager by rememberSaveable { mutableStateOf(false) }
     val selectedProject = projectTemplates.firstOrNull { it.id == selectedProjectId }
+
+    BackHandler(enabled = showRuntimeManager) { showRuntimeManager = false }
 
     LaunchedEffect(authState, projectState, choosingProject) {
         if (
@@ -179,19 +192,33 @@ fun LinkoraApp(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             if (step != OnboardingStep.Preview) {
-                LinkoraHeader()
+                LinkoraHeader(onOpenRuntimes = { showRuntimeManager = true })
                 HorizontalDivider(color = PaleStone)
             }
 
-            when (step) {
+            if (showRuntimeManager) {
+                RuntimeManagerScreen(
+                    packState = runtimePackState,
+                    downloadState = runtimeDownloadState,
+                    onBack = { showRuntimeManager = false },
+                    onDownload = onDownloadRuntime,
+                    onCancel = onCancelRuntimeDownload,
+                    onInstall = onInstallRuntime,
+                    onRemoveInstaller = onRemoveRuntimeInstaller,
+                )
+            } else when (step) {
                 OnboardingStep.ProjectType -> ProjectTypeScreen(
                     selectedProjectId = selectedProjectId,
                     runtimePackState = runtimePackState,
                     onSelectProject = { selectedProjectId = it.id },
                     onContinue = {
-                        choosingProject = false
-                        onPrepareProject(requireNotNull(selectedProjectId))
-                        step = OnboardingStep.WebSignIn
+                        if (projectNeedsRuntime(selectedProjectId, runtimePackState)) {
+                            showRuntimeManager = true
+                        } else {
+                            choosingProject = false
+                            onPrepareProject(requireNotNull(selectedProjectId))
+                            step = OnboardingStep.WebSignIn
+                        }
                     },
                 )
 
@@ -245,6 +272,7 @@ fun LinkoraApp(
                             onStartMariaDb = onStartMariaDb,
                             onRestartMariaDb = onRestartMariaDb,
                             onStopMariaDb = onStopMariaDb,
+                            onManageRuntimes = { showRuntimeManager = true },
                         )
                     }
                 }
@@ -263,7 +291,13 @@ fun LinkoraApp(
                     state = publishState,
                     connectorState = connectorState,
                     onClaimHostname = onClaimHostname,
-                    onConnectHostname = onConnectHostname,
+                    onConnectHostname = { hostname ->
+                        if (runtimePackState.connector.state == RuntimePackState.Ready) {
+                            onConnectHostname(hostname)
+                        } else {
+                            showRuntimeManager = true
+                        }
+                    },
                     onRetry = onLoadPublish,
                     onStopConnector = onStopConnector,
                     onBack = { step = OnboardingStep.Workspace },
@@ -274,7 +308,7 @@ fun LinkoraApp(
 }
 
 @Composable
-private fun LinkoraHeader() {
+private fun LinkoraHeader(onOpenRuntimes: () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = PaperRaised,
@@ -290,6 +324,13 @@ private fun LinkoraHeader() {
                 painter = painterResource(R.drawable.ic_linkora_wordmark),
                 contentDescription = "Linkora",
                 modifier = Modifier.size(width = 94.dp, height = 28.dp),
+            )
+            Box(modifier = Modifier.weight(1f))
+            ActionButton(
+                label = "Runtimes",
+                onClick = onOpenRuntimes,
+                style = ActionStyle.Neutral,
+                compact = true,
             )
         }
     }
@@ -341,6 +382,273 @@ private fun SetupProgress(currentStep: Int) {
             }
         }
     }
+}
+
+@Composable
+private fun RuntimeManagerScreen(
+    packState: RuntimePackUiState,
+    downloadState: RuntimeDownloadUiState,
+    onBack: () -> Unit,
+    onDownload: (String) -> Unit,
+    onCancel: (String) -> Unit,
+    onInstall: (String) -> Unit,
+    onRemoveInstaller: (String) -> Unit,
+) {
+    val runtimes = listOf(
+        packState.node to downloadState["node"],
+        packState.php to downloadState["php"],
+        packState.mariaDb to downloadState["mariadb"],
+        packState.connector to downloadState["connector"],
+    )
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+            start = 20.dp,
+            top = 20.dp,
+            end = 20.dp,
+            bottom = 24.dp,
+        ),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    SectionLabel("Runtime manager")
+                    Text(
+                        text = "Install only what your projects need.",
+                        modifier = Modifier.padding(top = 8.dp),
+                        style = MaterialTheme.typography.headlineMedium,
+                    )
+                }
+                ActionButton(
+                    label = "Back",
+                    onClick = onBack,
+                    style = ActionStyle.Neutral,
+                    compact = true,
+                )
+            }
+        }
+
+        runtimes.forEach { (inspection, download) ->
+            item(key = inspection.spec.id) {
+                RuntimeDownloadCard(
+                    inspection = inspection,
+                    download = download,
+                    onDownload = { onDownload(inspection.spec.id) },
+                    onCancel = { onCancel(inspection.spec.id) },
+                    onInstall = { onInstall(inspection.spec.id) },
+                    onRemoveInstaller = { onRemoveInstaller(inspection.spec.id) },
+                )
+            }
+        }
+
+        item {
+            Text(
+                text = "Downloads continue through Android Download Manager when Linkora is in the background.",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .windowInsetsPadding(WindowInsets.navigationBars),
+                color = MutedText,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+    }
+}
+
+@Composable
+private fun RuntimeDownloadCard(
+    inspection: RuntimePackInspection,
+    download: RuntimeDownloadState,
+    onDownload: () -> Unit,
+    onCancel: () -> Unit,
+    onInstall: () -> Unit,
+    onRemoveInstaller: () -> Unit,
+) {
+    val installed = inspection.state == RuntimePackState.Ready
+    val error = !installed && (
+        inspection.state in setOf(
+            RuntimePackState.Invalid,
+            RuntimePackState.Incompatible,
+        ) || download.phase == RuntimeDownloadPhase.Failed
+    )
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = PaperRaised,
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, if (error) Oxblood else PaleStone),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = inspection.spec.displayName,
+                        style = MaterialTheme.typography.titleLarge,
+                    )
+                    Text(
+                        text = "${inspection.spec.runtimeVersion}  |  ${download.artifact.abi}",
+                        modifier = Modifier.padding(top = 4.dp),
+                        color = MutedText,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp,
+                    )
+                }
+                RuntimeStatusBadge(
+                    label = when {
+                        installed -> "Installed"
+                        download.phase == RuntimeDownloadPhase.Downloading -> "Downloading"
+                        download.phase == RuntimeDownloadPhase.ReadyToInstall -> "Ready"
+                        download.phase == RuntimeDownloadPhase.Installing -> "Installing"
+                        download.phase == RuntimeDownloadPhase.Unavailable -> "Unavailable"
+                        download.phase == RuntimeDownloadPhase.Failed -> "Failed"
+                        else -> "Optional"
+                    },
+                    error = error,
+                )
+            }
+
+            Text(
+                text = runtimeDescription(inspection.spec.id),
+                modifier = Modifier.padding(top = 10.dp),
+                color = MutedText,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+
+            if (download.phase == RuntimeDownloadPhase.Downloading) {
+                val progress = download.progress
+                if (progress == null) {
+                    LinearProgressIndicator(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp),
+                        color = Oxblood,
+                        trackColor = PaleStone,
+                    )
+                } else {
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 16.dp),
+                        color = Oxblood,
+                        trackColor = PaleStone,
+                    )
+                    Text(
+                        text = "${(progress * 100).toInt()}%",
+                        modifier = Modifier.padding(top = 6.dp),
+                        color = Charcoal,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+            }
+
+            Text(
+                text = if (installed) inspection.message else download.message,
+                modifier = Modifier.padding(top = 10.dp),
+                color = if (error) Oxblood else MutedText,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+
+            when {
+                installed -> {
+                    if (download.phase == RuntimeDownloadPhase.ReadyToInstall) {
+                        ActionButton(
+                            label = "Delete downloaded installer",
+                            onClick = onRemoveInstaller,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 14.dp),
+                            style = ActionStyle.Neutral,
+                        )
+                    }
+                }
+                download.phase == RuntimeDownloadPhase.Unavailable -> ActionButton(
+                    label = "Not available for this device",
+                    onClick = {},
+                    enabled = false,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 14.dp),
+                )
+                download.phase == RuntimeDownloadPhase.Downloading -> ActionButton(
+                    label = "Cancel download",
+                    onClick = onCancel,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 14.dp),
+                    style = ActionStyle.Destructive,
+                )
+                download.phase == RuntimeDownloadPhase.ReadyToInstall -> {
+                    ActionButton(
+                        label = "Install runtime",
+                        onClick = onInstall,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 14.dp),
+                    )
+                    ActionButton(
+                        label = "Delete installer",
+                        onClick = onRemoveInstaller,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 10.dp),
+                        style = ActionStyle.Neutral,
+                    )
+                }
+                download.phase == RuntimeDownloadPhase.Installing -> ActionButton(
+                    label = "Waiting for Android...",
+                    onClick = {},
+                    enabled = false,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 14.dp),
+                )
+                else -> ActionButton(
+                    label = if (download.phase == RuntimeDownloadPhase.Failed) {
+                        "Retry download"
+                    } else {
+                        "Download ${formatDownloadSize(download.totalBytes)}"
+                    },
+                    onClick = onDownload,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 14.dp),
+                )
+            }
+        }
+    }
+}
+
+private fun runtimeDescription(runtimeId: String): String = when (runtimeId) {
+    "node" -> "Node.js and npm for JavaScript servers and API projects."
+    "php" -> "PHP with SQLite, mysqli, mysqlnd, and PDO MySQL support."
+    "mariadb" -> "Optional local MySQL-compatible database for Node.js and PHP projects."
+    "connector" -> "Publishes a running phone project through a Linkora managed tunnel."
+    else -> "Optional project runtime."
+}
+
+private fun projectNeedsRuntime(
+    projectId: String?,
+    runtimePackState: RuntimePackUiState,
+): Boolean = when (projectId) {
+    "node" -> runtimePackState.node.state != RuntimePackState.Ready
+    "php" -> runtimePackState.php.state != RuntimePackState.Ready
+    else -> false
+}
+
+private fun formatDownloadSize(bytes: Long): String = when {
+    bytes >= 1_048_576L -> "%.0f MB".format(bytes / 1_048_576.0)
+    bytes >= 1_024L -> "%.0f KB".format(bytes / 1_024.0)
+    else -> "$bytes B"
 }
 
 @Composable
@@ -396,11 +704,13 @@ private fun ProjectTypeScreen(
                     .windowInsetsPadding(WindowInsets.navigationBars),
             ) {
                 ActionButton(
-                    label = "Continue with ${projectTemplates.firstOrNull { it.id == selectedProjectId }?.name ?: "project"}",
+                    label = if (projectNeedsRuntime(selectedProjectId, runtimePackState)) {
+                        "Open Runtime Manager"
+                    } else {
+                        "Continue with ${projectTemplates.firstOrNull { it.id == selectedProjectId }?.name ?: "project"}"
+                    },
                     onClick = onContinue,
-                    enabled = selectedProjectId != null &&
-                        (selectedProjectId != "php" ||
-                            runtimePackState.php.state == RuntimePackState.Ready),
+                    enabled = selectedProjectId != null,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
@@ -473,9 +783,7 @@ private fun ProjectTemplateCard(
     runtimePackState: RuntimePackUiState,
     onSelect: () -> Unit,
 ) {
-    val runtimeAvailable = project.id != "php" ||
-        runtimePackState.php.state == RuntimePackState.Ready
-    val selectable = project.available && runtimeAvailable
+    val selectable = project.available
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -540,9 +848,10 @@ private fun ProjectTemplateCard(
                             runtimePackState.node.state == RuntimePackState.Ready ->
                             "NODE.JS READY"
                         project.id == "node" &&
-                            runtimePackState.node.state == RuntimePackState.Invalid ->
-                            "USING BUILT-IN NODE.JS"
-                        project.runtimePackage != null -> "RUNTIME INCLUDED"
+                            runtimePackState.node.state == RuntimePackState.Checking ->
+                            "CHECKING NODE.JS RUNTIME"
+                        project.id == "node" -> "NODE.JS RUNTIME REQUIRED"
+                        project.runtimePackage != null -> "RUNTIME REQUIRED"
                         else -> "NO RUNTIME NEEDED"
                     },
                     modifier = Modifier.padding(top = 8.dp),
@@ -642,9 +951,9 @@ private fun WebSignInScreen(
                         value = if (selectedProject.id == "node") {
                             when (runtimePackState.node.state) {
                                 RuntimePackState.Ready -> "Verified runtime pack"
-                                RuntimePackState.Invalid -> "Pack rejected; built-in fallback"
-                                RuntimePackState.Incompatible -> "Pack incompatible; built-in fallback"
-                                RuntimePackState.Missing -> "Built-in migration fallback"
+                                RuntimePackState.Invalid -> "Runtime pack rejected"
+                                RuntimePackState.Incompatible -> "Runtime pack incompatible"
+                                RuntimePackState.Missing -> "Node.js Runtime Pack required"
                                 RuntimePackState.Checking -> "Checking runtime pack"
                             }
                         } else if (selectedProject.id == "php") {
@@ -759,6 +1068,7 @@ private fun WorkspaceScreen(
     onStartMariaDb: () -> Unit,
     onRestartMariaDb: () -> Unit,
     onStopMariaDb: () -> Unit,
+    onManageRuntimes: () -> Unit,
 ) {
     var showNativeModuleWarning by rememberSaveable { mutableStateOf(false) }
     var showTechnicalDetails by rememberSaveable { mutableStateOf(false) }
@@ -886,6 +1196,7 @@ private fun WorkspaceScreen(
                     onStart = onStartMariaDb,
                     onRestart = onRestartMariaDb,
                     onStop = onStopMariaDb,
+                    onManageRuntimes = onManageRuntimes,
                 )
             }
         }
@@ -1503,6 +1814,7 @@ private fun MariaDbPanel(
     onStart: () -> Unit,
     onRestart: () -> Unit,
     onStop: () -> Unit,
+    onManageRuntimes: () -> Unit,
 ) {
     val isError = state.phase == MariaDbRuntimePhase.Error ||
         packState == RuntimePackState.Invalid ||
@@ -1567,9 +1879,9 @@ private fun MariaDbPanel(
 
             if (!state.isRunning) {
                 ActionButton(
-                    label = if (packReady) "Start database" else "Runtime pack required",
-                    onClick = onStart,
-                    enabled = packReady && !state.isBusy,
+                    label = if (packReady) "Start database" else "Open Runtime Manager",
+                    onClick = if (packReady) onStart else onManageRuntimes,
+                    enabled = !state.isBusy,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 16.dp),

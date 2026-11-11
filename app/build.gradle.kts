@@ -11,8 +11,8 @@ android {
         applicationId = "top.linkora.mobile"
         minSdk = 26
         targetSdk = 36
-        versionCode = 9
-        versionName = "0.5.0"
+        versionCode = 10
+        versionName = "0.6.0"
     }
 
     buildTypes {
@@ -36,16 +36,15 @@ android {
 
     sourceSets {
         getByName("main") {
-            assets.directories.add("../runtime-payloads/node/assets")
-            jniLibs.directories.add("../runtime-payloads/node/jniLibs")
+            // Native executables live in optional runtime packs so the main APK
+            // remains installable on every Android CPU architecture.
+            jniLibs.directories.clear()
         }
     }
 
     packaging {
         jniLibs {
             useLegacyPackaging = true
-            keepDebugSymbols += "**/libcloudflared.so"
-            keepDebugSymbols += "**/libnode_runtime.so"
         }
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"

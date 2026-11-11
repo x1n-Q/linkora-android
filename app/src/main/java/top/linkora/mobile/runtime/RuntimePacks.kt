@@ -69,6 +69,20 @@ object RuntimePacks {
         ),
     )
 
+    val Connector = RuntimePackSpec(
+        id = "connector",
+        displayName = "Linkora Connector Pack",
+        packageName = "top.linkora.runtime.connector",
+        protocolVersion = 1,
+        runtimeVersion = "2026.10.4",
+        executableName = "libcloudflared.so",
+        supportedAbis = setOf("arm64-v8a"),
+        nativeLibraryHashes = mapOf(
+            "libcloudflared.so" to
+                "218a64c6c09cdb0cb9c751cde31b976c0a1c4db9fd6d6d512c4ef96f374840e1",
+        ),
+    )
+
     fun inspectNode(context: Context): RuntimePackInspection =
         RuntimePackManager(context).inspect(Node)
 
@@ -77,4 +91,7 @@ object RuntimePacks {
 
     fun inspectMariaDb(context: Context): RuntimePackInspection =
         RuntimePackManager(context).inspect(MariaDb)
+
+    fun inspectConnector(context: Context): RuntimePackInspection =
+        RuntimePackManager(context).inspect(Connector)
 }

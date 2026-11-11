@@ -21,10 +21,10 @@ object NpmBundle {
         installation.deleteRecursively()
         check(installation.mkdirs()) { "The bundled npm directory could not be created." }
 
-        val runtimePack = RuntimePacks.inspectNode(context).installation
-        val openArchive = {
-            runtimePack?.openAsset(ASSET_PATH) ?: context.assets.open(ASSET_PATH)
+        val runtimePack = checkNotNull(RuntimePacks.inspectNode(context).installation) {
+            "Install the compatible Node.js Runtime Pack before using npm."
         }
+        val openArchive = { runtimePack.openAsset(ASSET_PATH) }
         val archiveHash = openArchive().use(::sha256)
         check(archiveHash == ARCHIVE_SHA256) { "The bundled npm archive failed its integrity check." }
 

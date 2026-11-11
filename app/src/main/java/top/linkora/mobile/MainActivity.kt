@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.DocumentsContract
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.result.contract.ActivityResultContracts
@@ -30,6 +31,7 @@ import top.linkora.mobile.project.ProjectWorkspaceState
 import top.linkora.mobile.project.ProjectWorkspaceViewModel
 import top.linkora.mobile.publish.PublishViewModel
 import top.linkora.mobile.runtime.RuntimePackViewModel
+import top.linkora.mobile.runtime.RuntimePackDownloadViewModel
 import top.linkora.mobile.ui.LinkoraApp
 import top.linkora.mobile.ui.theme.LinkoraTheme
 
@@ -41,7 +43,9 @@ class MainActivity : ComponentActivity() {
     private val phpRuntimeViewModel: PhpRuntimeViewModel by viewModels()
     private val mariaDbRuntimeViewModel: MariaDbRuntimeViewModel by viewModels()
     private val runtimePackViewModel: RuntimePackViewModel by viewModels()
+    private val runtimeDownloadViewModel: RuntimePackDownloadViewModel by viewModels()
     private var pendingRuntimeAction: (() -> Unit)? = null
+    private var pendingRuntimeInstallId: String? = null
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) {
@@ -69,6 +73,21 @@ class MainActivity : ComponentActivity() {
         TunnelConnectorService.stop(this)
         projectViewModel.selectProjectFolder(uri)
     }
+    private val runtimeInstallLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) {
+        runtimePackViewModel.refresh()
+        runtimeDownloadViewModel.refresh()
+    }
+    private val unknownSourcesLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) {
+        val runtimeId = pendingRuntimeInstallId
+        pendingRuntimeInstallId = null
+        if (runtimeId != null && packageManager.canRequestPackageInstalls()) {
+            launchRuntimeInstaller(runtimeId)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -92,6 +111,7 @@ class MainActivity : ComponentActivity() {
             val phpRuntimeState by phpRuntimeViewModel.uiState.collectAsState()
             val mariaDbRuntimeState by mariaDbRuntimeViewModel.uiState.collectAsState()
             val runtimePackState by runtimePackViewModel.uiState.collectAsState()
+            val runtimeDownloadState by runtimeDownloadViewModel.uiState.collectAsState()
 
             LaunchedEffect(authViewModel) {
                 authViewModel.browserRequests.collect(::openWebSignIn)
@@ -107,6 +127,7 @@ class MainActivity : ComponentActivity() {
                     phpRuntimeState = phpRuntimeState,
                     mariaDbRuntimeState = mariaDbRuntimeState,
                     runtimePackState = runtimePackState,
+                    runtimeDownloadState = runtimeDownloadState,
                     onStartSignIn = authViewModel::startSignIn,
                     onReopenBrowser = authViewModel::reopenBrowser,
                     onCancelSignIn = authViewModel::cancelSignIn,
@@ -150,6 +171,10 @@ class MainActivity : ComponentActivity() {
                         runWithRuntimeNotification(mariaDbRuntimeViewModel::restart)
                     },
                     onStopMariaDb = mariaDbRuntimeViewModel::stop,
+                    onDownloadRuntime = runtimeDownloadViewModel::download,
+                    onCancelRuntimeDownload = runtimeDownloadViewModel::cancel,
+                    onInstallRuntime = ::requestRuntimeInstall,
+                    onRemoveRuntimeInstaller = runtimeDownloadViewModel::removeInstaller,
                 )
             }
         }
@@ -158,6 +183,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         runtimePackViewModel.refresh()
+        runtimeDownloadViewModel.refresh()
     }
 
     private fun openWebSignIn(url: String) {
@@ -181,6 +207,24 @@ class MainActivity : ComponentActivity() {
 
         pendingRuntimeAction = action
         notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
+
+    private fun requestRuntimeInstall(runtimeId: String) {
+        if (!packageManager.canRequestPackageInstalls()) {
+            pendingRuntimeInstallId = runtimeId
+            unknownSourcesLauncher.launch(
+                Intent(
+                    Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                    Uri.parse("package:$packageName"),
+                ),
+            )
+            return
+        }
+        launchRuntimeInstaller(runtimeId)
+    }
+
+    private fun launchRuntimeInstaller(runtimeId: String) {
+        runtimeDownloadViewModel.createInstallIntent(runtimeId)?.let(runtimeInstallLauncher::launch)
     }
 
     private fun chooseProjectFolder() {

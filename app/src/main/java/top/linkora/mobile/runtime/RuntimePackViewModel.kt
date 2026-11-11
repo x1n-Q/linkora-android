@@ -14,6 +14,7 @@ data class RuntimePackUiState(
     val node: RuntimePackInspection,
     val php: RuntimePackInspection,
     val mariaDb: RuntimePackInspection,
+    val connector: RuntimePackInspection,
 )
 
 class RuntimePackViewModel(application: Application) : AndroidViewModel(application) {
@@ -33,6 +34,11 @@ class RuntimePackViewModel(application: Application) : AndroidViewModel(applicat
                 spec = RuntimePacks.MariaDb,
                 state = RuntimePackState.Checking,
                 message = "Checking the MariaDB Runtime Pack...",
+            ),
+            connector = RuntimePackInspection(
+                spec = RuntimePacks.Connector,
+                state = RuntimePackState.Checking,
+                message = "Checking the Linkora Connector Pack...",
             ),
         ),
     )
@@ -54,5 +60,6 @@ class RuntimePackViewModel(application: Application) : AndroidViewModel(applicat
         node = RuntimePacks.inspectNode(getApplication()),
         php = RuntimePacks.inspectPhp(getApplication()),
         mariaDb = RuntimePacks.inspectMariaDb(getApplication()),
+        connector = RuntimePacks.inspectConnector(getApplication()),
     )
 }

@@ -7,6 +7,7 @@ import android.os.Build
 import java.io.File
 import java.io.InputStream
 import java.security.MessageDigest
+import java.util.zip.ZipFile
 
 data class RuntimePackSpec(
     val id: String,
@@ -143,7 +144,47 @@ class RuntimePackManager(private val context: Context) {
         }
     }
 
-    private fun validateMetadata(applicationInfo: ApplicationInfo, spec: RuntimePackSpec) {
+    fun validateArchive(archive: File, spec: RuntimePackSpec, expectedAbi: String) {
+        check(archive.isFile) { "The downloaded runtime APK is missing." }
+        val packageInfo = checkNotNull(getArchivePackageInfo(archive)) {
+            "Android could not read the downloaded runtime APK."
+        }
+        check(packageInfo.packageName == spec.packageName) {
+            "The downloaded APK is not ${spec.displayName}."
+        }
+        val applicationInfo = checkNotNull(packageInfo.applicationInfo) {
+            "The downloaded runtime APK has no application metadata."
+        }
+        validateMetadata(applicationInfo, spec, expectedAbi)
+        val abi = applicationInfo.metaData.getString(METADATA_ABI)
+
+        ZipFile(archive).use { apk ->
+            spec.nativeLibraryHashes.forEach { (name, expectedHash) ->
+                val entry = checkNotNull(apk.getEntry("lib/$abi/$name")) {
+                    "The downloaded runtime APK is missing $name."
+                }
+                val actualHash = apk.getInputStream(entry).buffered().use(::sha256)
+                check(actualHash == expectedHash) {
+                    "The downloaded runtime APK failed the $name integrity check."
+                }
+            }
+            spec.assetHashes.forEach { (path, expectedHash) ->
+                val entry = checkNotNull(apk.getEntry("assets/$path")) {
+                    "The downloaded runtime APK is missing $path."
+                }
+                val actualHash = apk.getInputStream(entry).buffered().use(::sha256)
+                check(actualHash == expectedHash) {
+                    "The downloaded runtime APK failed the $path integrity check."
+                }
+            }
+        }
+    }
+
+    private fun validateMetadata(
+        applicationInfo: ApplicationInfo,
+        spec: RuntimePackSpec,
+        expectedAbi: String? = null,
+    ) {
         val metadata = checkNotNull(applicationInfo.metaData) {
             "The runtime pack metadata is missing."
         }
@@ -159,8 +200,12 @@ class RuntimePackManager(private val context: Context) {
         check(metadata.getString(METADATA_EXECUTABLE) == spec.executableName) {
             "The runtime pack executable metadata does not match."
         }
-        check(metadata.getString(METADATA_ABI) in spec.supportedAbis) {
+        val abi = metadata.getString(METADATA_ABI)
+        check(abi in spec.supportedAbis) {
             "The runtime pack architecture metadata does not match."
+        }
+        check(expectedAbi == null || abi == expectedAbi) {
+            "The downloaded runtime pack is for a different device architecture."
         }
     }
 
@@ -181,6 +226,20 @@ class RuntimePackManager(private val context: Context) {
             packageManager.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0))
         } else {
             packageManager.getPackageInfo(packageName, 0)
+        }
+
+    @Suppress("DEPRECATION")
+    private fun getArchivePackageInfo(archive: File) =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            packageManager.getPackageArchiveInfo(
+                archive.absolutePath,
+                PackageManager.PackageInfoFlags.of(PackageManager.GET_META_DATA.toLong()),
+            )
+        } else {
+            packageManager.getPackageArchiveInfo(
+                archive.absolutePath,
+                PackageManager.GET_META_DATA,
+            )
         }
 
     private fun File.sha256(): String = inputStream().buffered().use(::sha256)
