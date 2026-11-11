@@ -1,6 +1,6 @@
 # SQLite compatibility
 
-Linkora's bundled Node.js 24 runtime includes `node:sqlite`. Projects that use
+Linkora's Node.js 24 Runtime Pack includes `node:sqlite`. Projects that use
 the built-in module run without an npm database driver. Linkora also provides
 compatibility adapters for common projects that declare `better-sqlite3` or
 `sqlite3` as a direct dependency.

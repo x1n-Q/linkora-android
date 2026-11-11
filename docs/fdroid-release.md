@@ -9,21 +9,22 @@ is final.
 1. Make the source repository publicly cloneable.
 2. Confirm the application version and version code in `app/build.gradle.kts`.
 3. Update the build entry in `.fdroid.yml` to the same version.
-4. Run `./scripts/verify-bundled-runtime.sh`.
-5. Run `./gradlew clean :app:assembleRelease :runtime-node:assembleRelease` with JDK 17.
-6. Test the release build on a physical ARM64 Android device.
+4. Run all runtime-pack verification scripts.
+5. Run `./gradlew clean :app:assembleRelease` with JDK 17.
+6. Test the main release build on at least ARM64 and x86_64 Android devices.
 7. Commit all release sources and create the matching signed source tag, such
-   as `v0.5.0`.
+   as `v0.6.0`.
 8. Remove the build entry's `disable` field only after that tag is public.
 9. Add the final tag and commit to the fdroiddata submission. Do not submit a
    branch name as the release commit.
 
 ## Native runtime review
 
-F-Droid scans bundled executable files. Linkora includes ARM64 builds of
-Node.js, cloudflared, and the Android NDK C++ runtime plus a deterministic npm
-archive. Their source versions, build instructions, licenses, and SHA-256
-values are recorded in:
+F-Droid scans executable files in the source tree. Linkora keeps ARM64 builds
+of Node.js, PHP, MariaDB, cloudflared, and the Android NDK C++ runtime for its
+separate runtime-pack applications. The main app does not package those native
+runtimes. Source versions, build instructions, licenses, and SHA-256 values are
+recorded in:
 
 - `docs/node-runtime-build.md`
 - `docs/connector-build.md`
@@ -31,9 +32,9 @@ values are recorded in:
 - `scripts/verify-bundled-runtime.sh`
 - `docs/runtime-packs.md`
 
-The Node.js Runtime Pack has its own application ID and therefore requires its
-own F-Droid metadata submission when it becomes mandatory. The main app keeps
-the verified built-in fallback during this migration release.
+Each runtime pack has its own application ID and requires its own F-Droid
+metadata submission. Linkora can also install a compatible pack from a signed
+GitHub release after explicit user approval.
 
 The local metadata uses narrowly scoped `scanignore` entries for these known
 files. F-Droid maintainers may request that native artifacts be rebuilt in the

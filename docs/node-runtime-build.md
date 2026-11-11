@@ -1,8 +1,8 @@
 # Android Node.js runtime build
 
-Linkora bundles Node.js as Android-signed ARM64 executable code. Android installs
-the runtime from `jniLibs`; the app never downloads or executes native code from
-writable storage.
+Linkora packages Node.js as Android-signed ARM64 executable code in the separate
+Node.js Runtime Pack. Android installs the runtime from `jniLibs`; the main app
+never extracts or executes native code from writable storage.
 
 ## Inputs
 
@@ -43,8 +43,7 @@ and enable `CPU_NO_SIMD` for Android in both bundled zlib copies. Without these
 patches, the build leaves unresolved host trap-handler symbols and expects an
 NDK `cpufeatures` implementation that it does not link.
 
-The verified outputs are shared by the main app fallback and the standalone
-runtime pack:
+The verified outputs are packaged by the standalone runtime pack:
 
 ```text
 runtime-payloads/node/jniLibs/arm64-v8a/libnode_runtime.so

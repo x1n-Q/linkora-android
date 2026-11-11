@@ -18,10 +18,10 @@ RepoType: git
 Repo: https://github.com/x1n-Q/linkora-android.git
 
 Builds:
-  - versionName: 0.5.0
-    versionCode: 9
-    commit: v0.5.0
-    disable: Enable after the final public v0.5.0 source tag is created
+  - versionName: 0.6.0
+    versionCode: 10
+    commit: v0.6.0
+    disable: Enable after the final public v0.6.0 source tag is created
     gradle:
       - yes
     prebuild:
@@ -33,7 +33,8 @@ Builds:
       - runtime-payloads/node/assets/node/npm.zip
 
 MaintainerNotes: |-
-  The APK currently supports ARM64 Android devices only.
+  The main APK is architecture-neutral. Native runtimes are distributed as
+  separately installed, ABI-specific applications.
 
   Node.js, npm, cloudflared, and libc++ are free software. Their exact versions,
   source revisions, build commands, licenses, and expected hashes are documented
@@ -46,5 +47,5 @@ MaintainerNotes: |-
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
-CurrentVersion: 0.5.0
-CurrentVersionCode: 9
+CurrentVersion: 0.6.0
+CurrentVersionCode: 10

@@ -1,0 +1,5 @@
+Added a Runtime Manager with visible background download progress, package
+verification, and Android-controlled installation. The main app is now
+CPU-neutral, while Node.js, PHP, MariaDB, and the Linkora connector are optional
+architecture-specific packs. Static hosting remains available on every
+supported Android architecture.

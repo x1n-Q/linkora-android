@@ -1,8 +1,8 @@
 # Android connector build
 
-Linkora bundles an Android ARM64 build of `cloudflared` as a native executable
-library. Android installs this file as signed executable code; extracting an
-executable into app-writable storage is blocked by SELinux.
+Linkora packages the Android ARM64 `cloudflared` build in the separate,
+headless Linkora Connector Pack. Android installs it as signed executable code;
+extracting an executable into app-writable storage is blocked by SELinux.
 
 ## Inputs
 
@@ -30,14 +30,25 @@ CGO must remain enabled so hostname lookups use Android's native resolver. The
 pure-Go resolver falls back to loopback DNS on Android and cannot create a
 tunnel reliably.
 
-The output belongs at:
+The source payload belongs at:
 
 ```text
 app/src/main/jniLibs/arm64-v8a/libcloudflared.so
 ```
 
+The main application excludes this directory from its APK. The
+`runtime-connector` module packages the payload and the Runtime Manager installs
+the compatible connector pack only when public URL support is needed.
+
 Expected SHA-256:
 
 ```text
 218a64c6c09cdb0cb9c751cde31b976c0a1c4db9fd6d6d512c4ef96f374840e1
+```
+
+Build and verify the pack with:
+
+```sh
+./gradlew :runtime-connector:assembleDebug
+./scripts/verify-connector-runtime-pack.sh
 ```

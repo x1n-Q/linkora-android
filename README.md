@@ -6,8 +6,7 @@ Lightweight Android companion for Linkora, built with Kotlin and Jetpack Compose
 
 - Real static-site workspaces selected through Android Files
 - Real Node.js workspaces selected through Android Files
-- Bundled ARM64 Node.js 24 LTS runtime and npm, with no Termux dependency
-- Verified headless Node.js Runtime Pack with a built-in migration fallback
+- Verified headless Node.js 24 LTS Runtime Pack and npm, with no Termux dependency
 - Device-tested PHP 8.4 Runtime Pack with PDO SQLite and the built-in web server
 - Real PHP workspaces selected through Android Files, with persistent runtime data
 - In-app PHP start, restart, stop, preview, logs, uptime, and memory controls
@@ -25,7 +24,9 @@ Lightweight Android companion for Linkora, built with Kotlin and Jetpack Compose
 - Android Keystore-encrypted access-token storage
 - Linkora domain-pool and managed-hostname integration
 - New or existing Linkora URL assignment through the production API
-- Built-in Cloudflare connector with foreground status and automatic reconnect
+- Optional Linkora Connector Pack with foreground status and automatic reconnect
+- In-app Runtime Manager with background downloads, progress, verification, and install approval
+- CPU-neutral main APK with architecture-specific runtime selection
 - Linkora brand colors and Android launcher icon
 
 Sign-in uses Linkora's one-time device authorization flow. The app opens the
@@ -44,7 +45,7 @@ the approved request for a revocable device token.
    start the verified PHP Runtime Pack. Open the preview after it is running.
 6. Tap **Assign Linkora URL** to reserve a hostname or use an existing managed
    hostname.
-7. Linkora starts its built-in connector and keeps the phone-hosted project online.
+7. Linkora starts the installed connector pack and keeps the phone-hosted project online.
 
 The starter in Downloads or the user-selected folder remains the source of
 truth. Static projects are served directly. Node.js source is synchronized into
@@ -52,9 +53,12 @@ a private workspace whenever the runtime starts or restarts. Every selected
 project has separate persistent runtime storage, so generated databases,
 uploads, logs, and `node_modules` survive restarts without changing the source
 folder.
-The built-in connector, Node.js runtime, and PHP runtime currently support
-ARM64 Android phones. PHP requires the separate verified PHP Runtime Pack.
-Python remains planned.
+The main app and static hosting work across Android CPU architectures. Current
+Node.js, PHP, MariaDB, and connector binaries are published for ARM64. The
+Runtime Manager resolves packs against the device ABI and never offers an
+incompatible package. Additional ABI builds can be registered in a main-app
+update after their payload hashes and device tests are complete. Python remains
+planned.
 
 PHP projects must contain `index.php`. Linkora synchronizes selected project
 files into a private runtime workspace before each start or restart. Files
@@ -81,8 +85,8 @@ SQLite surface and limitations.
 To reproduce the runtime binaries, follow
 [`docs/node-runtime-build.md`](docs/node-runtime-build.md) and
 [`docs/php-runtime-build.md`](docs/php-runtime-build.md). Run
-`./gradlew :app:assembleDebug :runtime-node:assembleDebug :runtime-php:assembleDebug`
-and install the generated APKs on an Android 8.0 or newer ARM64 device.
+`./gradlew :app:assembleDebug :runtime-node:assembleDebug :runtime-php:assembleDebug :runtime-mariadb:assembleDebug :runtime-connector:assembleDebug`
+and install the main APK plus the runtime packs required by the project.
 Runtime-pack design and verification are documented in
 [`docs/runtime-packs.md`](docs/runtime-packs.md). Android Studio is optional.
 
