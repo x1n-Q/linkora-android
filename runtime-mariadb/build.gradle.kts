@@ -34,7 +34,7 @@ android {
     packaging {
         jniLibs {
             useLegacyPackaging = true
-            keepDebugSymbols += "**/libmariadbd_runtime.so"
+            keepDebugSymbols += "**/*.so"
         }
     }
 }

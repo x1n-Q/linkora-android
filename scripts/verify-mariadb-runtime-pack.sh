@@ -5,7 +5,7 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 apk="${1:-$repo_root/runtime-mariadb/build/outputs/apk/debug/runtime-mariadb-debug.apk}"
 payload="$repo_root/runtime-payloads/mariadb/jniLibs/arm64-v8a"
 
-for command in file readelf sha256sum unzip; do
+for command in basename cut file readelf sha256sum unzip; do
   command -v "$command" >/dev/null || {
     echo "Missing required command: $command" >&2
     exit 1
@@ -58,4 +58,23 @@ for required in \
 done
 
 sha256sum "$payload"/*.so "$repo_root/runtime-payloads/mariadb/assets/mariadb/share.zip"
+
+for source in "$payload"/*.so; do
+  entry="lib/arm64-v8a/$(basename "$source")"
+  source_hash="$(sha256sum "$source" | cut -d ' ' -f 1)"
+  apk_hash="$(unzip -p "$apk" "$entry" | sha256sum | cut -d ' ' -f 1)"
+  [[ "$source_hash" == "$apk_hash" ]] || {
+    echo "MariaDB Runtime Pack APK altered $entry during packaging." >&2
+    exit 1
+  }
+done
+
+share="$repo_root/runtime-payloads/mariadb/assets/mariadb/share.zip"
+share_hash="$(sha256sum "$share" | cut -d ' ' -f 1)"
+apk_share_hash="$(unzip -p "$apk" assets/mariadb/share.zip | sha256sum | cut -d ' ' -f 1)"
+[[ "$share_hash" == "$apk_share_hash" ]] || {
+  echo "MariaDB Runtime Pack APK altered assets/mariadb/share.zip during packaging." >&2
+  exit 1
+}
+
 echo "MariaDB Runtime Pack APK verified: $(basename "$apk")"
