@@ -30,7 +30,7 @@ val projectTemplates = listOf(
         id = "php",
         code = "PHP",
         name = "PHP app",
-        description = "For PHP websites and apps that use PHP or PDO SQLite.",
+        description = "For PHP websites with SQLite or the optional MariaDB runtime.",
         runtimePackage = "PHP 8.4 Runtime Pack",
         available = true,
     ),

@@ -31,6 +31,21 @@ Use `MARIADB_BUILD_WORK_DIR` to preserve package downloads and extracted files.
 The resulting APK is
 `runtime-mariadb/build/outputs/apk/debug/runtime-mariadb-debug.apk`.
 
+## App lifecycle
+
+Install the runtime pack, open a Node.js or PHP workspace, and use the optional
+database panel to start MariaDB. The main app binds it only to
+`127.0.0.1:3307`, creates an app-private data directory, generates local
+credentials, and keeps the process alive with a foreground service.
+
+Linkora adds these connection values to the project environment:
+
+- `DB_HOST`, `DB_PORT`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`
+- `MYSQL_HOST`, `MYSQL_TCP_PORT`, `MYSQL_DATABASE`, `MYSQL_USER`, `MYSQL_PASSWORD`
+
+The database panel shows the same values, current RAM use, uptime, and recent
+server output. Stopping the project does not delete its database files.
+
 ## Distribution
 
 MariaDB Community Server is GPLv2. The runtime APK includes its license,

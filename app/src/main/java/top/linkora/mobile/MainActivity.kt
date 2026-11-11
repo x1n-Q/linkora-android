@@ -22,6 +22,7 @@ import androidx.core.content.ContextCompat
 import top.linkora.mobile.auth.LinkoraAuthViewModel
 import top.linkora.mobile.connector.TunnelConnectorService
 import top.linkora.mobile.connector.TunnelConnectorStatus
+import top.linkora.mobile.mariadb.MariaDbRuntimeViewModel
 import top.linkora.mobile.node.NodeRuntimeViewModel
 import top.linkora.mobile.php.PhpRuntimeViewModel
 import top.linkora.mobile.project.ProjectKind
@@ -38,6 +39,7 @@ class MainActivity : ComponentActivity() {
     private val publishViewModel: PublishViewModel by viewModels()
     private val nodeRuntimeViewModel: NodeRuntimeViewModel by viewModels()
     private val phpRuntimeViewModel: PhpRuntimeViewModel by viewModels()
+    private val mariaDbRuntimeViewModel: MariaDbRuntimeViewModel by viewModels()
     private val runtimePackViewModel: RuntimePackViewModel by viewModels()
     private var pendingRuntimeAction: (() -> Unit)? = null
     private val notificationPermissionLauncher = registerForActivityResult(
@@ -63,6 +65,7 @@ class MainActivity : ComponentActivity() {
             (projectViewModel.uiState.value as? ProjectWorkspaceState.Ready)?.workspace
         if (activeWorkspace?.kind == ProjectKind.Node) nodeRuntimeViewModel.stop()
         if (activeWorkspace?.kind == ProjectKind.Php) phpRuntimeViewModel.stop()
+        mariaDbRuntimeViewModel.stop()
         TunnelConnectorService.stop(this)
         projectViewModel.selectProjectFolder(uri)
     }
@@ -87,6 +90,7 @@ class MainActivity : ComponentActivity() {
             val connectorState by TunnelConnectorStatus.state.collectAsState()
             val nodeRuntimeState by nodeRuntimeViewModel.uiState.collectAsState()
             val phpRuntimeState by phpRuntimeViewModel.uiState.collectAsState()
+            val mariaDbRuntimeState by mariaDbRuntimeViewModel.uiState.collectAsState()
             val runtimePackState by runtimePackViewModel.uiState.collectAsState()
 
             LaunchedEffect(authViewModel) {
@@ -101,6 +105,7 @@ class MainActivity : ComponentActivity() {
                     connectorState = connectorState,
                     nodeRuntimeState = nodeRuntimeState,
                     phpRuntimeState = phpRuntimeState,
+                    mariaDbRuntimeState = mariaDbRuntimeState,
                     runtimePackState = runtimePackState,
                     onStartSignIn = authViewModel::startSignIn,
                     onReopenBrowser = authViewModel::reopenBrowser,
@@ -112,6 +117,7 @@ class MainActivity : ComponentActivity() {
                             (projectViewModel.uiState.value as? ProjectWorkspaceState.Ready)?.workspace
                         if (activeWorkspace?.kind == ProjectKind.Node) nodeRuntimeViewModel.stop()
                         if (activeWorkspace?.kind == ProjectKind.Php) phpRuntimeViewModel.stop()
+                        mariaDbRuntimeViewModel.stop()
                         TunnelConnectorService.stop(this)
                         projectViewModel.prepareProject(projectId)
                     },
@@ -137,6 +143,13 @@ class MainActivity : ComponentActivity() {
                         runWithRuntimeNotification(phpRuntimeViewModel::restart)
                     },
                     onStopPhp = phpRuntimeViewModel::stop,
+                    onStartMariaDb = {
+                        runWithRuntimeNotification(mariaDbRuntimeViewModel::start)
+                    },
+                    onRestartMariaDb = {
+                        runWithRuntimeNotification(mariaDbRuntimeViewModel::restart)
+                    },
+                    onStopMariaDb = mariaDbRuntimeViewModel::stop,
                 )
             }
         }

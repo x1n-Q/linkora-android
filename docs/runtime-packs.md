@@ -59,6 +59,8 @@ Install the runtime before the main app when testing a clean device:
 
 ```sh
 adb install -r runtime-node/build/outputs/apk/debug/runtime-node-debug.apk
+adb install -r runtime-php/build/outputs/apk/debug/runtime-php-debug.apk
+adb install -r runtime-mariadb/build/outputs/apk/debug/runtime-mariadb-debug.apk
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 

@@ -64,6 +64,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import top.linkora.mobile.R
 import top.linkora.mobile.auth.AuthUiState
 import top.linkora.mobile.connector.TunnelConnectorState
+import top.linkora.mobile.mariadb.MariaDbRuntimePhase
+import top.linkora.mobile.mariadb.MariaDbRuntimeState
 import top.linkora.mobile.model.ProjectTemplate
 import top.linkora.mobile.model.projectTemplates
 import top.linkora.mobile.node.NodeRuntimePhase
@@ -112,6 +114,7 @@ fun LinkoraApp(
     connectorState: TunnelConnectorState,
     nodeRuntimeState: NodeRuntimeState,
     phpRuntimeState: PhpRuntimeState,
+    mariaDbRuntimeState: MariaDbRuntimeState,
     runtimePackState: RuntimePackUiState,
     onStartSignIn: () -> Unit,
     onReopenBrowser: () -> Unit,
@@ -131,6 +134,9 @@ fun LinkoraApp(
     onStartPhp: () -> Unit,
     onRestartPhp: () -> Unit,
     onStopPhp: () -> Unit,
+    onStartMariaDb: () -> Unit,
+    onRestartMariaDb: () -> Unit,
+    onStopMariaDb: () -> Unit,
 ) {
     var step by rememberSaveable { mutableStateOf(OnboardingStep.ProjectType) }
     var selectedProjectId by rememberSaveable { mutableStateOf<String?>("static") }
@@ -216,6 +222,8 @@ fun LinkoraApp(
                             accountEmail = authState.session.email,
                             nodeRuntimeState = nodeRuntimeState,
                             phpRuntimeState = phpRuntimeState,
+                            mariaDbRuntimeState = mariaDbRuntimeState,
+                            mariaDbPackState = runtimePackState.mariaDb.state,
                             onPreview = { step = OnboardingStep.Preview },
                             onOpenFiles = onOpenFiles,
                             onAssignUrl = {
@@ -234,6 +242,9 @@ fun LinkoraApp(
                             onStartPhp = onStartPhp,
                             onRestartPhp = onRestartPhp,
                             onStopPhp = onStopPhp,
+                            onStartMariaDb = onStartMariaDb,
+                            onRestartMariaDb = onRestartMariaDb,
+                            onStopMariaDb = onStopMariaDb,
                         )
                     }
                 }
@@ -731,6 +742,8 @@ private fun WorkspaceScreen(
     accountEmail: String,
     nodeRuntimeState: NodeRuntimeState,
     phpRuntimeState: PhpRuntimeState,
+    mariaDbRuntimeState: MariaDbRuntimeState,
+    mariaDbPackState: RuntimePackState,
     onPreview: () -> Unit,
     onOpenFiles: () -> Unit,
     onAssignUrl: () -> Unit,
@@ -743,6 +756,9 @@ private fun WorkspaceScreen(
     onStartPhp: () -> Unit,
     onRestartPhp: () -> Unit,
     onStopPhp: () -> Unit,
+    onStartMariaDb: () -> Unit,
+    onRestartMariaDb: () -> Unit,
+    onStopMariaDb: () -> Unit,
 ) {
     var showNativeModuleWarning by rememberSaveable { mutableStateOf(false) }
     var showTechnicalDetails by rememberSaveable { mutableStateOf(false) }
@@ -862,6 +878,18 @@ private fun WorkspaceScreen(
             }
         }
 
+        if (workspace.kind != ProjectKind.Static) {
+            item {
+                MariaDbPanel(
+                    state = mariaDbRuntimeState,
+                    packState = mariaDbPackState,
+                    onStart = onStartMariaDb,
+                    onRestart = onRestartMariaDb,
+                    onStop = onStopMariaDb,
+                )
+            }
+        }
+
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -966,7 +994,7 @@ private fun WorkspaceScreen(
                     if (workspace.kind == ProjectKind.Php) {
                         SummaryRow(label = "Runtime", value = "PHP 8.4.27")
                         SummaryRow(label = "Entry", value = workspace.entryPoint ?: "index.php")
-                        SummaryRow(label = "Database", value = "PDO SQLite 3.47.2")
+                        SummaryRow(label = "Database", value = "SQLite or MariaDB 13")
                     }
                 }
             }
@@ -1456,6 +1484,165 @@ private fun PhpRuntimePanel(
                 ) {
                     Text(
                         text = state.logs.takeLast(12).joinToString("\n") { it.take(320) },
+                        modifier = Modifier.padding(14.dp),
+                        color = WarmPaper,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 10.sp,
+                        lineHeight = 15.sp,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MariaDbPanel(
+    state: MariaDbRuntimeState,
+    packState: RuntimePackState,
+    onStart: () -> Unit,
+    onRestart: () -> Unit,
+    onStop: () -> Unit,
+) {
+    val isError = state.phase == MariaDbRuntimePhase.Error ||
+        packState == RuntimePackState.Invalid ||
+        packState == RuntimePackState.Incompatible
+    val packReady = packState == RuntimePackState.Ready
+    var showConnection by rememberSaveable { mutableStateOf(false) }
+    var showLogs by rememberSaveable { mutableStateOf(false) }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = PaperRaised,
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, if (isError) Oxblood else PaleStone),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            SectionLabel("Optional database")
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = when {
+                        !packReady -> "MariaDB needs its runtime pack"
+                        state.phase == MariaDbRuntimePhase.Idle -> "MariaDB is off"
+                        state.phase == MariaDbRuntimePhase.Preparing -> "Preparing database"
+                        state.phase == MariaDbRuntimePhase.Starting -> "Starting database"
+                        state.phase == MariaDbRuntimePhase.Running -> "MariaDB is running"
+                        state.phase == MariaDbRuntimePhase.Stopping -> "Stopping database"
+                        else -> "Database needs attention"
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                RuntimeStatusBadge(
+                    label = if (!packReady) "NOT INSTALLED" else state.phase.name,
+                    error = isError,
+                )
+            }
+            Text(
+                text = if (!packReady) {
+                    "Install the separate MariaDB Runtime Pack to use MySQL-compatible projects."
+                } else {
+                    state.message
+                },
+                modifier = Modifier.padding(top = 8.dp),
+                color = if (isError) Oxblood else MutedText,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+
+            if (state.isRunning) {
+                SummaryRow(
+                    label = "Uptime",
+                    value = state.uptimeSeconds?.let(::formatRuntimeDuration) ?: "Starting",
+                )
+                SummaryRow(
+                    label = "Memory",
+                    value = state.memoryMb?.let { "$it MB" } ?: "Measuring",
+                )
+            }
+
+            if (!state.isRunning) {
+                ActionButton(
+                    label = if (packReady) "Start database" else "Runtime pack required",
+                    onClick = onStart,
+                    enabled = packReady && !state.isBusy,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp),
+                )
+            } else {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    ActionButton(
+                        label = "Restart",
+                        onClick = onRestart,
+                        modifier = Modifier.weight(1f),
+                        style = ActionStyle.Secondary,
+                        compact = true,
+                    )
+                    ActionButton(
+                        label = "Stop",
+                        onClick = onStop,
+                        modifier = Modifier.weight(1f),
+                        style = ActionStyle.Destructive,
+                        compact = true,
+                    )
+                }
+            }
+
+            if (state.credentials != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    ActionButton(
+                        label = if (showConnection) "Hide connection" else "Connection details",
+                        onClick = { showConnection = !showConnection },
+                        modifier = Modifier.weight(1f),
+                        style = ActionStyle.Neutral,
+                        compact = true,
+                    )
+                    if (state.logs.isNotEmpty()) {
+                        ActionButton(
+                            label = if (showLogs) "Hide logs" else "Database logs",
+                            onClick = { showLogs = !showLogs },
+                            modifier = Modifier.weight(1f),
+                            style = ActionStyle.Neutral,
+                            compact = true,
+                        )
+                    }
+                }
+            }
+
+            state.credentials?.takeIf { showConnection }?.let { credentials ->
+                Column(modifier = Modifier.padding(top = 12.dp)) {
+                    SummaryRow("Host", "${credentials.host}:${credentials.port}")
+                    SummaryRow("Database", credentials.database)
+                    SummaryRow("Username", credentials.username)
+                    SummaryRow("Password", credentials.password)
+                }
+            }
+
+            if (showLogs && state.logs.isNotEmpty()) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp),
+                    color = Charcoal,
+                    shape = MaterialTheme.shapes.small,
+                ) {
+                    Text(
+                        text = state.logs.takeLast(10).joinToString("\n") { it.take(320) },
                         modifier = Modifier.padding(14.dp),
                         color = WarmPaper,
                         fontFamily = FontFamily.Monospace,

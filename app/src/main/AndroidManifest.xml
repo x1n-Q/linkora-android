@@ -58,6 +58,15 @@
                 android:value="Runs a user-selected PHP project locally on this phone." />
         </service>
         <service
+            android:name=".mariadb.MariaDbRuntimeService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            android:stopWithTask="false">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Runs an optional local MariaDB database for the active project." />
+        </service>
+        <service
             android:name=".connector.TunnelConnectorService"
             android:exported="false"
             android:foregroundServiceType="specialUse"

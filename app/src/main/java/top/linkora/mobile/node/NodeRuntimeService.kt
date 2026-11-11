@@ -30,6 +30,7 @@ import kotlinx.coroutines.launch
 import top.linkora.mobile.MainActivity
 import top.linkora.mobile.R
 import top.linkora.mobile.connector.TunnelConnectorService
+import top.linkora.mobile.mariadb.putMariaDbEnvironment
 import top.linkora.mobile.php.PhpRuntimeService
 import top.linkora.mobile.project.ProjectServerService
 import top.linkora.mobile.project.ProjectWorkspaceManager
@@ -389,6 +390,7 @@ class NodeRuntimeService : Service() {
                     put("PORT", ProjectWorkspaceManager.LOCAL_PORT.toString())
                     put("NODE_ENV", "production")
                     put("NODE_PATH", File(directory, "node_modules").absolutePath)
+                    putMariaDbEnvironment(applicationContext)
                     prependToNativeLibraryPath(checkNotNull(executable.parentFile))
                     prependToPath(commandDirectory)
                 }

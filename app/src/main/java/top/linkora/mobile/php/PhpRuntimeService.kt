@@ -30,6 +30,7 @@ import kotlinx.coroutines.launch
 import top.linkora.mobile.MainActivity
 import top.linkora.mobile.R
 import top.linkora.mobile.connector.TunnelConnectorService
+import top.linkora.mobile.mariadb.putMariaDbEnvironment
 import top.linkora.mobile.node.NodeRuntimeService
 import top.linkora.mobile.project.ProjectServerService
 import top.linkora.mobile.project.ProjectWorkspaceManager
@@ -308,6 +309,7 @@ class PhpRuntimeService : Service() {
                     put("TMPDIR", temporary.absolutePath)
                     put("LINKORA_HOST", "127.0.0.1")
                     put("LINKORA_PORT", ProjectWorkspaceManager.LOCAL_PORT.toString())
+                    putMariaDbEnvironment(applicationContext)
                     prependToNativeLibraryPath(checkNotNull(executable.parentFile))
                 }
             }
