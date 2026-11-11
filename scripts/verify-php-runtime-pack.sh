@@ -4,9 +4,9 @@ set -euo pipefail
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 apk="${1:-$repo_root/runtime-php/build/outputs/apk/debug/runtime-php-debug.apk}"
 runtime="$repo_root/runtime-payloads/php/jniLibs/arm64-v8a/libphp_runtime.so"
-runtime_sha256="17d779851bb77c6a2f29efbf92d2d2911b373d8cb8c3e2263f9d3c2a11111776"
+runtime_sha256="6162e6cd7850c0eee23837859d2240a4649b398c8263cfbb19984a375e0b8576"
 
-for command in unzip sha256sum file; do
+for command in unzip sha256sum file grep; do
   command -v "$command" >/dev/null || {
     echo "Missing required command: $command" >&2
     exit 1
@@ -21,6 +21,12 @@ file "$runtime" | grep -q "ARM aarch64" || {
   echo "PHP runtime is not an ARM64 ELF executable." >&2
   exit 1
 }
+for module in mysqli pdo_mysql mysqlnd; do
+  grep -aFq "$module" "$runtime" || {
+    echo "PHP runtime is missing $module support." >&2
+    exit 1
+  }
+done
 echo "$runtime_sha256  $runtime" | sha256sum --check --status || {
   echo "PHP runtime failed its integrity check." >&2
   exit 1

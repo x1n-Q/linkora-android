@@ -145,11 +145,15 @@ if [[ ! -f .linkora-android-configured ]]; then
       --enable-exif \
       --enable-fileinfo \
       --enable-filter \
+      --enable-mysqlnd \
+      --disable-mysqlnd-compression-support \
       --enable-pdo \
       --enable-session \
       --enable-sockets \
       --enable-tokenizer \
       --with-mhash \
+      --with-mysqli=mysqlnd \
+      --with-pdo-mysql=mysqlnd \
       --with-sqlite3 \
       --with-pdo-sqlite
   patch --strip=1 < "$repo_root/scripts/patches/php-${PHP_VERSION}-android-config.patch"

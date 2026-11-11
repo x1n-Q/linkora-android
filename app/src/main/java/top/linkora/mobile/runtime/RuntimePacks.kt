@@ -33,7 +33,7 @@ object RuntimePacks {
         supportedAbis = setOf("arm64-v8a"),
         nativeLibraryHashes = mapOf(
             "libphp_runtime.so" to
-                "17d779851bb77c6a2f29efbf92d2d2911b373d8cb8c3e2263f9d3c2a11111776",
+                "6162e6cd7850c0eee23837859d2240a4649b398c8263cfbb19984a375e0b8576",
         ),
     )
 

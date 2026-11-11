@@ -12,10 +12,10 @@ the foreground service, logs, and process lifecycle.
 - minimum Android API `26`
 - target ABI `arm64-v8a`
 
-The first pack includes PHP CLI, the built-in development server, PDO SQLite,
-SQLite3, sessions, sockets, fileinfo, tokenizer, filter, ctype, bcmath,
-calendar, and EXIF. OpenSSL, cURL, XML, and MySQL clients are not included in
-this first build and must not be presented as supported.
+The pack includes PHP CLI, the built-in development server, PDO SQLite,
+SQLite3, mysqlnd, mysqli, PDO MySQL, sessions, sockets, fileinfo, tokenizer,
+filter, ctype, bcmath, calendar, and EXIF. OpenSSL, cURL, and XML are not
+included in this build and must not be presented as supported.
 
 ## Project lifecycle
 
