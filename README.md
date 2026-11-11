@@ -26,6 +26,7 @@ Lightweight Android companion for Linkora, built with Kotlin and Jetpack Compose
 - New or existing Linkora URL assignment through the production API
 - Optional Linkora Connector Pack with foreground status and automatic reconnect
 - In-app Runtime Manager with background downloads, progress, verification, and install approval
+- Read-only MariaDB explorer with table previews and guarded SQL queries
 - CPU-neutral main APK with architecture-specific runtime selection
 - Linkora brand colors and Android launcher icon
 

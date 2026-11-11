@@ -65,6 +65,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import top.linkora.mobile.R
 import top.linkora.mobile.auth.AuthUiState
 import top.linkora.mobile.connector.TunnelConnectorState
+import top.linkora.mobile.database.DatabaseExplorerMode
+import top.linkora.mobile.database.DatabaseExplorerState
 import top.linkora.mobile.mariadb.MariaDbRuntimePhase
 import top.linkora.mobile.mariadb.MariaDbRuntimeState
 import top.linkora.mobile.model.ProjectTemplate
@@ -95,6 +97,7 @@ import top.linkora.mobile.ui.theme.PaleStone
 import top.linkora.mobile.ui.theme.PaperRaised
 import top.linkora.mobile.ui.theme.StrongBorder
 import top.linkora.mobile.ui.theme.WarmPaper
+import top.linkora.mobile.ui.database.DatabaseExplorerScreen
 
 private enum class OnboardingStep {
     ProjectType,
@@ -120,6 +123,7 @@ fun LinkoraApp(
     nodeRuntimeState: NodeRuntimeState,
     phpRuntimeState: PhpRuntimeState,
     mariaDbRuntimeState: MariaDbRuntimeState,
+    databaseExplorerState: DatabaseExplorerState,
     runtimePackState: RuntimePackUiState,
     runtimeDownloadState: RuntimeDownloadUiState,
     onStartSignIn: () -> Unit,
@@ -147,14 +151,27 @@ fun LinkoraApp(
     onCancelRuntimeDownload: (String) -> Unit,
     onInstallRuntime: (String) -> Unit,
     onRemoveRuntimeInstaller: (String) -> Unit,
+    onRefreshDatabaseExplorer: () -> Unit,
+    onSetDatabaseExplorerMode: (DatabaseExplorerMode) -> Unit,
+    onShowDatabaseTables: () -> Unit,
+    onSelectDatabaseTable: (String) -> Unit,
+    onUpdateDatabaseQuery: (String) -> Unit,
+    onRunDatabaseQuery: () -> Unit,
 ) {
     var step by rememberSaveable { mutableStateOf(OnboardingStep.ProjectType) }
     var selectedProjectId by rememberSaveable { mutableStateOf<String?>("static") }
     var choosingProject by rememberSaveable { mutableStateOf(false) }
     var showRuntimeManager by rememberSaveable { mutableStateOf(false) }
+    var showDatabaseExplorer by rememberSaveable { mutableStateOf(false) }
     val selectedProject = projectTemplates.firstOrNull { it.id == selectedProjectId }
 
-    BackHandler(enabled = showRuntimeManager) { showRuntimeManager = false }
+    BackHandler(enabled = showRuntimeManager || showDatabaseExplorer) {
+        if (showDatabaseExplorer) showDatabaseExplorer = false else showRuntimeManager = false
+    }
+
+    LaunchedEffect(showDatabaseExplorer) {
+        if (showDatabaseExplorer) onRefreshDatabaseExplorer()
+    }
 
     LaunchedEffect(authState, projectState, choosingProject) {
         if (
@@ -205,6 +222,17 @@ fun LinkoraApp(
                     onCancel = onCancelRuntimeDownload,
                     onInstall = onInstallRuntime,
                     onRemoveInstaller = onRemoveRuntimeInstaller,
+                )
+            } else if (showDatabaseExplorer) {
+                DatabaseExplorerScreen(
+                    state = databaseExplorerState,
+                    onBack = { showDatabaseExplorer = false },
+                    onRefresh = onRefreshDatabaseExplorer,
+                    onSetMode = onSetDatabaseExplorerMode,
+                    onShowTables = onShowDatabaseTables,
+                    onSelectTable = onSelectDatabaseTable,
+                    onUpdateQuery = onUpdateDatabaseQuery,
+                    onRunQuery = onRunDatabaseQuery,
                 )
             } else when (step) {
                 OnboardingStep.ProjectType -> ProjectTypeScreen(
@@ -272,6 +300,7 @@ fun LinkoraApp(
                             onStartMariaDb = onStartMariaDb,
                             onRestartMariaDb = onRestartMariaDb,
                             onStopMariaDb = onStopMariaDb,
+                            onOpenDatabaseExplorer = { showDatabaseExplorer = true },
                             onManageRuntimes = { showRuntimeManager = true },
                         )
                     }
@@ -1068,6 +1097,7 @@ private fun WorkspaceScreen(
     onStartMariaDb: () -> Unit,
     onRestartMariaDb: () -> Unit,
     onStopMariaDb: () -> Unit,
+    onOpenDatabaseExplorer: () -> Unit,
     onManageRuntimes: () -> Unit,
 ) {
     var showNativeModuleWarning by rememberSaveable { mutableStateOf(false) }
@@ -1196,6 +1226,7 @@ private fun WorkspaceScreen(
                     onStart = onStartMariaDb,
                     onRestart = onRestartMariaDb,
                     onStop = onStopMariaDb,
+                    onExploreDatabase = onOpenDatabaseExplorer,
                     onManageRuntimes = onManageRuntimes,
                 )
             }
@@ -1814,6 +1845,7 @@ private fun MariaDbPanel(
     onStart: () -> Unit,
     onRestart: () -> Unit,
     onStop: () -> Unit,
+    onExploreDatabase: () -> Unit,
     onManageRuntimes: () -> Unit,
 ) {
     val isError = state.phase == MariaDbRuntimePhase.Error ||
@@ -1887,10 +1919,17 @@ private fun MariaDbPanel(
                         .padding(top = 16.dp),
                 )
             } else {
-                Row(
+                ActionButton(
+                    label = "Explore database",
+                    onClick = onExploreDatabase,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 16.dp),
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     ActionButton(

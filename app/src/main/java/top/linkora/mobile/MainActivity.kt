@@ -23,6 +23,7 @@ import androidx.core.content.ContextCompat
 import top.linkora.mobile.auth.LinkoraAuthViewModel
 import top.linkora.mobile.connector.TunnelConnectorService
 import top.linkora.mobile.connector.TunnelConnectorStatus
+import top.linkora.mobile.database.DatabaseExplorerViewModel
 import top.linkora.mobile.mariadb.MariaDbRuntimeViewModel
 import top.linkora.mobile.node.NodeRuntimeViewModel
 import top.linkora.mobile.php.PhpRuntimeViewModel
@@ -42,6 +43,7 @@ class MainActivity : ComponentActivity() {
     private val nodeRuntimeViewModel: NodeRuntimeViewModel by viewModels()
     private val phpRuntimeViewModel: PhpRuntimeViewModel by viewModels()
     private val mariaDbRuntimeViewModel: MariaDbRuntimeViewModel by viewModels()
+    private val databaseExplorerViewModel: DatabaseExplorerViewModel by viewModels()
     private val runtimePackViewModel: RuntimePackViewModel by viewModels()
     private val runtimeDownloadViewModel: RuntimePackDownloadViewModel by viewModels()
     private var pendingRuntimeAction: (() -> Unit)? = null
@@ -110,6 +112,7 @@ class MainActivity : ComponentActivity() {
             val nodeRuntimeState by nodeRuntimeViewModel.uiState.collectAsState()
             val phpRuntimeState by phpRuntimeViewModel.uiState.collectAsState()
             val mariaDbRuntimeState by mariaDbRuntimeViewModel.uiState.collectAsState()
+            val databaseExplorerState by databaseExplorerViewModel.uiState.collectAsState()
             val runtimePackState by runtimePackViewModel.uiState.collectAsState()
             val runtimeDownloadState by runtimeDownloadViewModel.uiState.collectAsState()
 
@@ -126,6 +129,7 @@ class MainActivity : ComponentActivity() {
                     nodeRuntimeState = nodeRuntimeState,
                     phpRuntimeState = phpRuntimeState,
                     mariaDbRuntimeState = mariaDbRuntimeState,
+                    databaseExplorerState = databaseExplorerState,
                     runtimePackState = runtimePackState,
                     runtimeDownloadState = runtimeDownloadState,
                     onStartSignIn = authViewModel::startSignIn,
@@ -175,6 +179,12 @@ class MainActivity : ComponentActivity() {
                     onCancelRuntimeDownload = runtimeDownloadViewModel::cancel,
                     onInstallRuntime = ::requestRuntimeInstall,
                     onRemoveRuntimeInstaller = runtimeDownloadViewModel::removeInstaller,
+                    onRefreshDatabaseExplorer = databaseExplorerViewModel::refresh,
+                    onSetDatabaseExplorerMode = databaseExplorerViewModel::setMode,
+                    onShowDatabaseTables = databaseExplorerViewModel::showTables,
+                    onSelectDatabaseTable = databaseExplorerViewModel::selectTable,
+                    onUpdateDatabaseQuery = databaseExplorerViewModel::updateQuery,
+                    onRunDatabaseQuery = databaseExplorerViewModel::runQuery,
                 )
             }
         }
