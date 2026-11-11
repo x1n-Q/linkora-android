@@ -60,3 +60,4 @@ The Android application also uses these libraries from its Gradle dependencies:
 | NanoHTTPD | 2.3.1 | BSD-3-Clause | https://github.com/NanoHttpd/nanohttpd |
 | AndroidX | See Gradle build files | Apache-2.0 | https://android.googlesource.com/platform/frameworks/support |
 | Kotlin coroutines | 1.9.0 | Apache-2.0 | https://github.com/Kotlin/kotlinx.coroutines |
+| MariaDB Connector/J | 3.5.11 | LGPL-2.1-or-later | https://github.com/mariadb-corporation/mariadb-connector-j |

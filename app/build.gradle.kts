@@ -11,8 +11,8 @@ android {
         applicationId = "top.linkora.mobile"
         minSdk = 26
         targetSdk = 36
-        versionCode = 10
-        versionName = "0.6.0"
+        versionCode = 11
+        versionName = "0.7.0"
     }
 
     buildTypes {
@@ -66,8 +66,10 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.4")
+    implementation("org.mariadb.jdbc:mariadb-java-client:3.5.11")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("org.nanohttpd:nanohttpd:2.3.1")
 
+    testImplementation("junit:junit:4.13.2")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
