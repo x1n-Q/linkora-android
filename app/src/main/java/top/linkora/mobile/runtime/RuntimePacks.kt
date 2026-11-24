@@ -3,6 +3,9 @@ package top.linkora.mobile.runtime
 import android.content.Context
 
 object RuntimePacks {
+    private const val RELEASE_SIGNER_SHA256 =
+        "30938a07ba42ca042033a78ac75f1730a5463d780e3d9a9119a762fa540c222d"
+
     val Node = RuntimePackSpec(
         id = "node",
         displayName = "Node.js Runtime Pack",
@@ -11,6 +14,7 @@ object RuntimePacks {
         runtimeVersion = "24.22.1",
         executableName = "libnode_runtime.so",
         supportedAbis = setOf("arm64-v8a"),
+        trustedSignerSha256 = setOf(RELEASE_SIGNER_SHA256),
         nativeLibraryHashes = mapOf(
             "libnode_runtime.so" to
                 "c03a6a63832dc27dec14d6879a194242c7f2142301471c18d67354fe137d2b6a",
@@ -20,6 +24,10 @@ object RuntimePacks {
         assetHashes = mapOf(
             "node/npm.zip" to
                 "e8e8c951a85400bc5706564197dfbf4f1682b52dcc3cba1731041d6b5f49424e",
+        ),
+        dexHashes = mapOf(
+            "classes.dex" to
+                "7443a812570a2e08fc6c38d3259d4d34b7d8a347b49c07617038b398b1e47a9a",
         ),
     )
 
@@ -31,9 +39,14 @@ object RuntimePacks {
         runtimeVersion = "8.4.27",
         executableName = "libphp_runtime.so",
         supportedAbis = setOf("arm64-v8a"),
+        trustedSignerSha256 = setOf(RELEASE_SIGNER_SHA256),
         nativeLibraryHashes = mapOf(
             "libphp_runtime.so" to
                 "6162e6cd7850c0eee23837859d2240a4649b398c8263cfbb19984a375e0b8576",
+        ),
+        dexHashes = mapOf(
+            "classes.dex" to
+                "d650e7262a5acb4905a29299550b8b77e61a6188ddc061bcf3b372dd3cb54698",
         ),
     )
 
@@ -45,6 +58,7 @@ object RuntimePacks {
         runtimeVersion = "13.0.2",
         executableName = "libmariadbd_runtime.so",
         supportedAbis = setOf("arm64-v8a"),
+        trustedSignerSha256 = setOf(RELEASE_SIGNER_SHA256),
         nativeLibraryHashes = mapOf(
             "libmariadbd_runtime.so" to
                 "2f222e39293fba966e11421adfa1b854e55af9179673d3fb76dc22313a56e4d8",
@@ -67,6 +81,10 @@ object RuntimePacks {
             "mariadb/share.zip" to
                 "5a2910048432b47ae6788a12d965a0788a4b9f011089491833b4c17e04130290",
         ),
+        dexHashes = mapOf(
+            "classes.dex" to
+                "2efbbbe48e3e8158f653d737dcf863887531f7928b70cb17b415a10e714c69bc",
+        ),
     )
 
     val Connector = RuntimePackSpec(
@@ -77,9 +95,14 @@ object RuntimePacks {
         runtimeVersion = "2026.10.4",
         executableName = "libcloudflared.so",
         supportedAbis = setOf("arm64-v8a"),
+        trustedSignerSha256 = setOf(RELEASE_SIGNER_SHA256),
         nativeLibraryHashes = mapOf(
             "libcloudflared.so" to
                 "218a64c6c09cdb0cb9c751cde31b976c0a1c4db9fd6d6d512c4ef96f374840e1",
+        ),
+        dexHashes = mapOf(
+            "classes.dex" to
+                "29a6fb09414e615658b72b739d190f5a97e1fa82fddd8c7423b40bb841bc175f",
         ),
     )
 

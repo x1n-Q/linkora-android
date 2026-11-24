@@ -141,7 +141,7 @@ class RuntimePackDownloadViewModel(application: Application) : AndroidViewModel(
         val artifact = RuntimePackCatalog.resolve(runtimeId) ?: return null
         val archive = installerFile(artifact)
         return runCatching {
-            validator.validateArchive(archive, artifact.spec, artifact.abi)
+            validator.validateArchive(archive, artifact)
             update(
                 artifact,
                 _uiState.value[runtimeId].copy(
@@ -268,7 +268,7 @@ class RuntimePackDownloadViewModel(application: Application) : AndroidViewModel(
         requestInstall: Boolean,
     ) {
         runCatching {
-            validator.validateArchive(installerFile(artifact), artifact.spec, artifact.abi)
+            validator.validateArchive(installerFile(artifact), artifact)
         }.onSuccess {
             val fileSize = installerFile(artifact).length()
             preferences.edit().remove(downloadKey(artifact)).apply()
