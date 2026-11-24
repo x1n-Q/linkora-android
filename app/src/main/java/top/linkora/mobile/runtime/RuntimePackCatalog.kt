@@ -17,7 +17,7 @@ data class RuntimePackRelease(
 
 object RuntimePackCatalog {
     private const val RELEASE_BASE =
-        "https://github.com/x1n-Q/linkora-android/releases/latest/download"
+        "https://github.com/x1n-Q/linkora-runtime-packs/releases/latest/download"
 
     val Node = release(
         spec = RuntimePacks.Node,
