@@ -49,5 +49,15 @@ server output. Stopping the project does not delete its database files.
 ## Distribution
 
 MariaDB Community Server is GPLv2. The runtime APK includes its license,
-third-party notices, dependency notices, and a source offer. Keep the build
-script and exact package hashes available beside every distributed runtime APK.
+third-party notices, dependency notices, and an exact source link. Build the
+source artifact with:
+
+```sh
+./scripts/package-mariadb-source.sh
+```
+
+The resulting `dist/linkora-runtime-mariadb-13.0.2-source.tar.gz` contains the
+verified upstream source archive, the complete pinned Termux build tree and
+patch set, Linkora's repackaging script, input checksums, notices, and rebuild
+instructions. Publish it beside every MariaDB runtime APK under the same
+immutable release tag.

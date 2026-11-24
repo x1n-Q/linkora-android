@@ -51,6 +51,32 @@ installation is requested.
 - Bundled license: `app/src/main/assets/licenses/npm-LICENSE.txt`
 - Runtime payload: `runtime-payloads/node/assets/node/npm.zip`
 
+## PHP
+
+The optional PHP Runtime Pack contains PHP 8.4.27 compiled for Android ARM64.
+It is installed only after explicit user approval and runs only for a selected
+PHP project.
+
+- Project: https://www.php.net/
+- License: PHP License 3.01 and bundled third-party notices
+- Runtime payload: `runtime-payloads/php/jniLibs/arm64-v8a/libphp_runtime.so`
+
+## MariaDB
+
+The optional MariaDB Runtime Pack contains MariaDB Community Server 13.0.2 and
+the shared libraries required by that Android build. The server binds only to
+the device loopback interface and is started only after explicit user action.
+
+- Project: https://mariadb.org/
+- License: GPL-2.0 and bundled third-party licenses
+- Runtime payload: `runtime-payloads/mariadb/jniLibs/arm64-v8a/`
+- Exact source bundle: https://github.com/x1n-Q/linkora-runtime-packs/releases/download/runtime-packs-v0.7.0/linkora-runtime-mariadb-13.0.2-source.tar.gz
+- Termux recipe revision: `22880cd43c4bb44e8a9eabcec9a075e8c8bf473b`
+
+The source bundle includes the unmodified MariaDB source archive, the complete
+pinned Termux build tree and patch set, Linkora's repackaging script, checksums,
+licenses, and reproduction instructions.
+
 ## Application libraries
 
 The Android application also uses these libraries from its Gradle dependencies:
