@@ -12,9 +12,11 @@ import androidx.lifecycle.viewModelScope
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -67,6 +69,8 @@ class RuntimePackDownloadViewModel(application: Application) : AndroidViewModel(
     private val validator = RuntimePackManager(application)
     private val _uiState = MutableStateFlow(RuntimeDownloadUiState())
     val uiState = _uiState.asStateFlow()
+    private val _installRequests = Channel<String>(Channel.BUFFERED)
+    val installRequests = _installRequests.receiveAsFlow()
     private var monitorJob: Job? = null
 
     init {
@@ -80,8 +84,11 @@ class RuntimePackDownloadViewModel(application: Application) : AndroidViewModel(
                 withContext(Dispatchers.IO) {
                     removeDownloadRecord(artifact)
                     val destination = installerFile(artifact)
-                    check(destination.parentFile?.mkdirs() != false) {
-                        "The runtime download directory could not be created."
+                    val downloadDirectory = checkNotNull(destination.parentFile)
+                    if (!downloadDirectory.isDirectory) {
+                        check(downloadDirectory.mkdirs() || downloadDirectory.isDirectory) {
+                            "The runtime download directory could not be created."
+                        }
                     }
                     if (destination.exists()) check(destination.delete()) {
                         "The old runtime installer could not be replaced."
@@ -235,7 +242,10 @@ class RuntimePackDownloadViewModel(application: Application) : AndroidViewModel(
                         "Download paused by Android. It will resume automatically.",
                     ),
                 )
-                DownloadManager.STATUS_SUCCESSFUL -> validateInstaller(artifact)
+                DownloadManager.STATUS_SUCCESSFUL -> validateInstaller(
+                    artifact = artifact,
+                    requestInstall = true,
+                )
                 DownloadManager.STATUS_FAILED -> {
                     val reason = cursor.longColumn(DownloadManager.COLUMN_REASON).toInt()
                     removeDownloadRecord(artifact)
@@ -247,15 +257,21 @@ class RuntimePackDownloadViewModel(application: Application) : AndroidViewModel(
     }
 
     private fun restoreInstallerOrIdle(artifact: RuntimePackArtifact) {
-        if (installerFile(artifact).isFile) validateInstaller(artifact)
+        if (installerFile(artifact).isFile) {
+            validateInstaller(artifact, requestInstall = false)
+        }
         else update(artifact, RuntimeDownloadState(artifact))
     }
 
-    private fun validateInstaller(artifact: RuntimePackArtifact) {
+    private fun validateInstaller(
+        artifact: RuntimePackArtifact,
+        requestInstall: Boolean,
+    ) {
         runCatching {
             validator.validateArchive(installerFile(artifact), artifact.spec, artifact.abi)
         }.onSuccess {
             val fileSize = installerFile(artifact).length()
+            preferences.edit().remove(downloadKey(artifact)).apply()
             update(
                 artifact,
                 RuntimeDownloadState(
@@ -266,6 +282,7 @@ class RuntimePackDownloadViewModel(application: Application) : AndroidViewModel(
                     message = "Download verified. Android will ask before installing it.",
                 ),
             )
+            if (requestInstall) _installRequests.trySend(artifact.spec.id)
         }.onFailure { error ->
             removeDownloadRecord(artifact)
             installerFile(artifact).delete()
