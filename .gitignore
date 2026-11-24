@@ -5,6 +5,12 @@
 local.properties
 build/
 captures/
+dist/
 .externalNativeBuild/
 .cxx/
 app/build/
+runtime-*/build/
+*.jks
+*.keystore
+*.p12
+signing.properties
