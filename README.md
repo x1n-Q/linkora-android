@@ -1,21 +1,115 @@
+<!-- markdownlint-disable MD033 MD041 -->
+
+<div align="center">
+
+<img
+  src="fastlane/metadata/android/en-US/images/icon.png"
+  width="104"
+  height="104"
+  alt="Linkora Mobile icon"
+/>
+
 # Linkora Mobile
 
-Run and host web projects directly on an Android phone.
+**A local-first Android workspace for running and publishing web projects.**
 
-[Website](https://linkora.top/mobile) ·
-[Download APK](https://linkora.top/downloads/linkora-mobile-v0.7.0.apk) ·
-[VirusTotal report][virustotal] ·
-[MIT license](LICENSE)
+Open a real project folder, run it on your phone, inspect logs and resource
+use, then decide whether it stays local or goes online.
 
-Linkora Mobile is a local-first project runtime built with Kotlin and Jetpack
-Compose. It can create or open real project folders, run supported web stacks,
-show logs and resource use, and keep a project active through an Android
-foreground service.
+<p>
+  <a href="https://linkora.top/downloads/linkora-mobile-v0.7.0.apk">
+    <img
+      src="https://img.shields.io/badge/Download-APK-813C42?style=for-the-badge&amp;logo=android&amp;logoColor=white"
+      alt="Download Linkora Mobile APK"
+    />
+  </a>
+  <a href="https://linkora.top/mobile">
+    <img
+      src="https://img.shields.io/badge/Visit-Website-252821?style=for-the-badge&amp;logo=googlechrome&amp;logoColor=white"
+      alt="Visit the Linkora Mobile website"
+    />
+  </a>
+  <a href="https://github.com/x1n-Q/linkora-android/releases/tag/v0.7.0">
+    <img
+      src="https://img.shields.io/badge/View-Release-4F5350?style=for-the-badge&amp;logo=github&amp;logoColor=white"
+      alt="View the Linkora Mobile 0.7.0 release"
+    />
+  </a>
+</p>
 
-A Linkora account is optional. Standalone mode works without `linkora.top` or
-any Linkora service.
+<p>
+  <img
+    src="https://img.shields.io/badge/Android-8.0%2B-3DDC84?style=flat-square&amp;logo=android&amp;logoColor=white"
+    alt="Android 8.0 or later"
+  />
+  <img
+    src="https://img.shields.io/badge/Kotlin-Jetpack_Compose-7F52FF?style=flat-square&amp;logo=kotlin&amp;logoColor=white"
+    alt="Built with Kotlin and Jetpack Compose"
+  />
+  <img
+    src="https://img.shields.io/badge/version-0.7.0-813C42?style=flat-square"
+    alt="Version 0.7.0"
+  />
+  <a href="LICENSE">
+    <img
+      src="https://img.shields.io/badge/license-MIT-252821?style=flat-square"
+      alt="MIT License"
+    />
+  </a>
+</p>
 
-## Features
+</div>
+
+## Overview
+
+Linkora Mobile turns an Android phone into a lightweight project runtime. It
+can create or open real project folders, run supported web stacks, show logs
+and resource use, and keep a project active through an Android foreground
+service.
+
+A Linkora account is optional. **Standalone mode works without `linkora.top` or
+any Linkora service.**
+
+## Interface
+
+<table>
+  <tr>
+    <td width="33%" align="center">
+      <a href="fastlane/metadata/android/en-US/images/phoneScreenshots/1.png">
+        <img
+          src="fastlane/metadata/android/en-US/images/phoneScreenshots/1.png"
+          width="100%"
+          alt="Linkora Mobile project list"
+        />
+      </a>
+    </td>
+    <td width="33%" align="center">
+      <a href="fastlane/metadata/android/en-US/images/phoneScreenshots/2.png">
+        <img
+          src="fastlane/metadata/android/en-US/images/phoneScreenshots/2.png"
+          width="100%"
+          alt="Running Node.js project in Linkora Mobile"
+        />
+      </a>
+    </td>
+    <td width="33%" align="center">
+      <a href="fastlane/metadata/android/en-US/images/phoneScreenshots/3.png">
+        <img
+          src="fastlane/metadata/android/en-US/images/phoneScreenshots/3.png"
+          width="100%"
+          alt="Linkora Mobile Runtime Manager"
+        />
+      </a>
+    </td>
+  </tr>
+  <tr>
+    <td align="center"><strong>Projects</strong></td>
+    <td align="center"><strong>Runtime controls</strong></td>
+    <td align="center"><strong>Runtime Manager</strong></td>
+  </tr>
+</table>
+
+## What it does
 
 - Create a project or open an existing folder through Android Files
 - Host static sites directly from the phone
