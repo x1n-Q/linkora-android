@@ -10,42 +10,31 @@ SourceCode: https://github.com/x1n-Q/linkora-android
 IssueTracker: https://github.com/x1n-Q/linkora-android/issues
 Changelog: https://github.com/x1n-Q/linkora-android/releases
 
-AntiFeatures:
-  TetheredNet:
-    en-US: Authentication and hostname assignment currently use the fixed linkora.top service.
-
 RepoType: git
 Repo: https://github.com/x1n-Q/linkora-android.git
 
 Builds:
-  - versionName: 0.6.0
-    versionCode: 10
-    commit: v0.6.0
-    disable: Enable after the final public v0.6.0 source tag is created
+  - versionName: 0.7.0
+    versionCode: 11
+    commit: v0.7.0
     gradle:
       - yes
-    prebuild:
-      - ./scripts/verify-bundled-runtime.sh
-    scanignore:
-      - runtime-payloads/node/jniLibs/arm64-v8a/libc++_shared.so
-      - app/src/main/jniLibs/arm64-v8a/libcloudflared.so
-      - runtime-payloads/node/jniLibs/arm64-v8a/libnode_runtime.so
-      - runtime-payloads/node/assets/node/npm.zip
+    output: app/build/outputs/apk/release/app-release-unsigned.apk
+    rm:
+      - app/src/main/jniLibs
+      - runtime-payloads
+    prebuild: sed -i '/include(":runtime-/d' settings.gradle.kts
 
 MaintainerNotes: |-
-  The main APK is architecture-neutral. Native runtimes are distributed as
-  separately installed, ABI-specific applications.
+  This recipe builds only the architecture-neutral main application. Prebuilt
+  native payloads are removed before scanning, and runtime-pack modules are
+  excluded from settings.gradle.kts before Gradle runs assembleRelease.
 
-  Node.js, npm, cloudflared, and libc++ are free software. Their exact versions,
-  source revisions, build commands, licenses, and expected hashes are documented
-  in docs/node-runtime-build.md, docs/connector-build.md,
-  THIRD_PARTY_NOTICES.md, and scripts/verify-bundled-runtime.sh.
-
-  The build is intentionally disabled while the application is under active
-  development. Before submission, update this build block to the final version,
-  create the matching public source tag, and remove the disable field.
+  Static hosting works without an add-on. Node.js, PHP, MariaDB, and connector
+  support use separately installed FOSS runtime-pack applications. Those packs
+  have distinct application IDs and are not outputs of this build recipe.
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
-CurrentVersion: 0.6.0
-CurrentVersionCode: 10
+CurrentVersion: 0.7.0
+CurrentVersionCode: 11

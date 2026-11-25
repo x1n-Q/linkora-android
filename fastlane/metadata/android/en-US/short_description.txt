@@ -1,1 +1,1 @@
-Host static and Node.js projects directly from an Android phone
+Host web projects directly from your Android phone

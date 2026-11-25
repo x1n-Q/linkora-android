@@ -1,20 +1,25 @@
-Linkora turns an ARM64 Android phone into a lightweight project host. Select a
-real folder from Android Files, preview it locally, and optionally assign a
-Linkora hostname without installing Termux.
+Linkora Mobile Host turns an Android phone into a lightweight project host.
+Select a real folder from Android Files, preview it locally, and choose whether
+to keep it on the device, share it on the local network, use your own domain,
+or connect an optional Linkora hostname. Termux is not required.
 
 Features include:
 
 * static HTML, CSS, JavaScript, SPA routing, and custom 404 pages
-* a bundled Node.js 24 LTS runtime and npm
+* standalone operation without a Linkora account
+* device-only and local-network hosting modes
+* optional, separately installed Node.js 24, PHP 8.4, and MariaDB runtime packs
 * visible runtime logs, uptime, memory use, restart, and stop controls
 * project folders that remain editable with ordinary Android file tools
 * local preview at 127.0.0.1 before anything is published
-* outbound managed tunnels without router or inbound-port configuration
-* browser-based Linkora account authorization
+* optional outbound tunnels without router or inbound-port configuration
+* browser-based authorization for optional Linkora-managed publishing
+* no advertising or analytics SDK
 
-Node.js support is experimental and currently targets ARM64 devices. Pure
-JavaScript packages are the supported baseline. Native npm modules may not
-install or run on Android.
+Static hosting works on every supported Android architecture without a runtime
+pack. Current Node.js, PHP, MariaDB, and connector packs target ARM64. Node.js
+support is experimental; pure JavaScript packages are the supported baseline,
+and native npm modules may not install or run on Android.
 
-The app contains no advertising or analytics SDK. Authentication and hostname
-assignment currently use the fixed linkora.top service.
+Linkora-managed publishing is optional and uses linkora.top. Standalone mode
+does not require that service.

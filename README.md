@@ -22,6 +22,10 @@ Lightweight Android companion for Linkora, built with Kotlin and Jetpack Compose
 - Browser-based device authorization through Android Custom Tabs
 - Automatic approval polling and session restoration
 - Android Keystore-encrypted access-token storage
+- Standalone mode with no Linkora account or `linkora.top` dependency
+- Device-only and local-network project access
+- User-owned domain publishing through a Cloudflare Tunnel token
+- Selectable Node.js and PHP start commands with `{HOST}` and `{PORT}` placeholders
 - Linkora domain-pool and managed-hostname integration
 - New or existing Linkora URL assignment through the production API
 - Optional Linkora Connector Pack with foreground status and automatic reconnect
@@ -30,23 +34,28 @@ Lightweight Android companion for Linkora, built with Kotlin and Jetpack Compose
 - CPU-neutral main APK with architecture-specific runtime selection
 - Linkora brand colors and Android launcher icon
 
-Sign-in uses Linkora's one-time device authorization flow. The app opens the
+Linkora-managed mode uses Linkora's one-time device authorization flow. The app opens the
 approval page on `linkora.top`, never receives the account password, and exchanges
 the approved request for a revocable device token.
 
+Standalone mode does not require a Linkora account and does not call the Linkora
+API. Projects can stay device-only, be shared on the local network, or use a
+Cloudflare Tunnel configured by the user for their own domain.
+
 ## Project workflow
 
-1. Select **Static site**, **Node.js**, or **PHP** and sign in with Linkora.
-2. Use the included starter or tap **Choose project folder**.
-3. In Android Files, choose a folder containing `index.html` for a static site,
+1. Select **Linkora managed** or **Standalone** publishing.
+2. Select **Static site**, **Node.js**, or **PHP**. Sign in only in Linkora-managed mode.
+3. Use the included starter or tap **Choose project folder**.
+4. In Android Files, choose a folder containing `index.html` for a static site,
    `package.json` and a supported JavaScript entry file for Node.js, or
-   `index.php` for PHP.
-4. Edit the selected files with any Android file editor.
-5. For Node.js, install dependencies if needed and start the runtime. For PHP,
+   `index.php` for PHP, or a Laravel project containing `artisan` and `public/index.php`.
+5. Edit the selected files with any Android file editor.
+6. For Node.js, install dependencies if needed and start the runtime. For PHP,
    start the verified PHP Runtime Pack. Open the preview after it is running.
-6. Tap **Assign Linkora URL** to reserve a hostname or use an existing managed
-   hostname.
-7. Linkora starts the installed connector pack and keeps the phone-hosted project online.
+7. Use the detected start command or set a `node`, `npm`, or `php` command.
+8. In managed mode, assign a Linkora URL. In standalone mode, keep the project
+   local, share it on the LAN, or connect a user-owned Cloudflare tunnel.
 
 The starter in Downloads or the user-selected folder remains the source of
 truth. Static projects are served directly. Node.js source is synchronized into
@@ -61,13 +70,16 @@ incompatible package. Additional ABI builds can be registered in a main-app
 update after their payload hashes and device tests are complete. Python remains
 planned.
 
-PHP projects must contain `index.php`. Linkora synchronizes selected project
-files into a private runtime workspace before each start or restart. Files
-created at runtime, including SQLite databases and uploads, remain available
-between restarts without modifying the selected source folder.
+PHP projects must contain `index.php`, or Laravel's `artisan` and
+`public/index.php`. Linkora synchronizes selected project files into a private
+runtime workspace before each start or restart. Files created at runtime,
+including SQLite databases and uploads, remain available between restarts
+without modifying the selected source folder.
 
-Node.js servers must listen on `process.env.HOST` and `process.env.PORT`.
-Linkora sets these to `127.0.0.1` and `8787` before starting the project.
+Node.js servers should listen on `process.env.HOST` and `process.env.PORT`.
+Linkora supplies both values and supports `{HOST}` and `{PORT}` placeholders in
+custom start commands. Local-network sharing changes the supplied host from
+`127.0.0.1` to `0.0.0.0`; the local port remains `8787`.
 
 The Android Node.js runtime is experimental. Pure JavaScript packages are the
 supported baseline. Linkora adapts common `better-sqlite3` and `sqlite3` APIs to
@@ -94,6 +106,8 @@ Runtime-pack design and verification are documented in
 ## F-Droid preparation
 
 F-Droid metadata is maintained in `.fdroid.yml` and `fastlane/metadata/android`.
-The build recipe remains disabled until a final release commit is tagged and
-the source repository is public. See [`docs/fdroid-release.md`](docs/fdroid-release.md)
-for the release checklist.
+The main-app recipe removes all prebuilt runtime payloads and excludes the
+runtime-pack modules before building the architecture-neutral APK from source.
+Static hosting remains fully functional; native runtimes are separate FOSS
+applications with their own release and review process. See
+[`docs/fdroid-release.md`](docs/fdroid-release.md) for the release checklist.

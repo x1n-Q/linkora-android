@@ -1,0 +1,5 @@
+Redesigned the project workflow for clearer setup and runtime controls. Added
+standalone hosting, local-network access, user-owned tunnel support, verified
+optional runtime-pack downloads, PHP hosting, MariaDB management and a guarded
+database explorer. Improved import safety, encrypted database credentials,
+process cleanup, backups and browser authorization checks.
