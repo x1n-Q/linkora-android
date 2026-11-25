@@ -30,6 +30,7 @@ import top.linkora.mobile.php.PhpRuntimeStatus
 import top.linkora.mobile.project.ProjectKind
 import top.linkora.mobile.project.ProjectServerService
 import top.linkora.mobile.project.ProjectWorkspaceManager
+import top.linkora.mobile.runtime.RuntimeProcessTerminator
 
 class TunnelConnectorService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -66,7 +67,7 @@ class TunnelConnectorService : Service() {
     override fun onDestroy() {
         connectorJob?.cancel()
         connectorJob = null
-        connectorProcess?.destroy()
+        RuntimeProcessTerminator.terminate(connectorProcess)
         connectorProcess = null
         scope.cancel()
         if (stoppedByUser || TunnelConnectorStatus.state.value !is TunnelConnectorState.Error) {
@@ -80,7 +81,8 @@ class TunnelConnectorService : Service() {
     private fun startConnector(hostname: String, token: String) {
         stoppedByUser = false
         connectorJob?.cancel()
-        connectorProcess?.destroy()
+        RuntimeProcessTerminator.terminate(connectorProcess)
+        connectorProcess = null
         TunnelConnectorStatus.update(TunnelConnectorState.Starting(hostname))
         startForeground(NOTIFICATION_ID, buildNotification(hostname, "Connecting"))
 
@@ -129,7 +131,7 @@ class TunnelConnectorService : Service() {
                 TunnelConnectorStatus.update(
                     TunnelConnectorState.Error(
                         hostname,
-                        "The built-in connector stopped. Open Linkora and connect the hostname again.",
+                        "The public connector stopped. Open the app and connect the hostname again.",
                     ),
                 )
                 updateNotification(hostname, "Connection stopped")
@@ -205,7 +207,7 @@ class TunnelConnectorService : Service() {
                 "Public project connection",
                 NotificationManager.IMPORTANCE_LOW,
             ).apply {
-                description = "Keeps a Linkora hostname connected to this phone."
+                description = "Keeps a published hostname connected to this phone."
             },
         )
     }
@@ -221,7 +223,7 @@ class TunnelConnectorService : Service() {
         NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_linkora_notification)
             .setContentTitle(hostname)
-            .setContentText("Linkora connector: $status")
+            .setContentText("Public connector: $status")
             .setOngoing(true)
             .setSilent(true)
             .setContentIntent(

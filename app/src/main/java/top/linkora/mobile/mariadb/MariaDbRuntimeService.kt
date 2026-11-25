@@ -31,6 +31,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import top.linkora.mobile.MainActivity
 import top.linkora.mobile.R
+import top.linkora.mobile.runtime.RuntimeProcessTerminator
 
 class MariaDbRuntimeService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -404,8 +405,7 @@ class MariaDbRuntimeService : Service() {
 
     private fun terminateProcess() {
         val process = childProcess ?: return
-        runCatching { process.destroy() }
-        if (process.isAlive) runCatching { process.destroyForcibly() }
+        RuntimeProcessTerminator.terminate(process)
         childProcess = null
     }
 

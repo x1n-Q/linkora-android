@@ -20,12 +20,23 @@ class ProjectServerService : Service() {
         super.onCreate()
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification())
-        server = StaticSiteServer(applicationContext).apply {
-            start(5_000, false)
+        try {
+            server = StaticSiteServer(applicationContext).apply {
+                start(5_000, false)
+            }
+        } catch (error: Exception) {
+            server = null
+            getSystemService(NotificationManager::class.java).notify(
+                NOTIFICATION_ID,
+                buildFailureNotification(error.message),
+            )
+            stopForeground(STOP_FOREGROUND_DETACH)
+            stopSelf()
         }
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int =
+        if (server == null) START_NOT_STICKY else START_STICKY
 
     override fun onDestroy() {
         server?.stop()
@@ -63,6 +74,27 @@ class ProjectServerService : Service() {
             ),
         )
         .build()
+
+    private fun buildFailureNotification(detail: String?) =
+        NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_linkora_notification)
+            .setContentTitle("Project server could not start")
+            .setContentText(detail?.take(120) ?: "Port 8787 may already be in use.")
+            .setStyle(
+                NotificationCompat.BigTextStyle().bigText(
+                    detail ?: "Port 8787 may already be in use. Open Linkora and try again.",
+                ),
+            )
+            .setAutoCancel(true)
+            .setContentIntent(
+                PendingIntent.getActivity(
+                    this,
+                    0,
+                    Intent(this, MainActivity::class.java),
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                ),
+            )
+            .build()
 
     companion object {
         private const val CHANNEL_ID = "linkora_project_server"

@@ -32,8 +32,12 @@ import top.linkora.mobile.R
 import top.linkora.mobile.connector.TunnelConnectorService
 import top.linkora.mobile.mariadb.putMariaDbEnvironment
 import top.linkora.mobile.node.NodeRuntimeService
+import top.linkora.mobile.project.ProjectCommand
+import top.linkora.mobile.project.ProjectExecutable
 import top.linkora.mobile.project.ProjectServerService
 import top.linkora.mobile.project.ProjectWorkspaceManager
+import top.linkora.mobile.runtime.RuntimeProcessTerminator
+import top.linkora.mobile.settings.HostingSettings
 
 class PhpRuntimeService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -127,14 +131,15 @@ class PhpRuntimeService : Service() {
 
                 PhpRuntimeStatus.update(
                     PhpRuntimePhase.Starting,
-                    "Starting ${launchConfig.entryPoint} on ${ProjectWorkspaceManager.LOCAL_URL}...",
+                    "Starting ${launchConfig.command.display()} on ${ProjectWorkspaceManager.LOCAL_URL}...",
                 )
                 updateNotification("Starting PHP")
-                PhpRuntimeStatus.appendLog(
-                    "php -S 127.0.0.1:${ProjectWorkspaceManager.LOCAL_PORT} " +
-                        "-t ${launchConfig.projectDirectory.name}",
+                PhpRuntimeStatus.appendLog(launchConfig.command.display())
+                val process = startPhpProcess(
+                    executable,
+                    launchConfig.projectDirectory,
+                    launchConfig.command,
                 )
-                val process = startPhpProcess(executable, launchConfig.projectDirectory)
                 childProcess = process
                 runtimeStartedAtMs = SystemClock.elapsedRealtime()
                 val logJob = launch { readProcessOutput(process) }
@@ -275,16 +280,23 @@ class PhpRuntimeService : Service() {
 
     private fun terminateChildProcess() {
         val process = childProcess ?: return
-        runCatching { process.destroy() }
-        if (process.isAlive) runCatching { process.destroyForcibly() }
+        RuntimeProcessTerminator.terminate(process)
         childProcess = null
     }
 
-    private fun startPhpProcess(executable: File, directory: File): Process {
+    private fun startPhpProcess(
+        executable: File,
+        directory: File,
+        command: ProjectCommand,
+    ): Process {
+        check(command.executable == ProjectExecutable.Php) {
+            "A PHP project must start with PHP."
+        }
+        val bindHost = HostingSettings(applicationContext).read().bindHost
         val home = File(filesDir, "php/home").apply { mkdirs() }
         val temporary = File(cacheDir, "php").apply { mkdirs() }
         val sessions = File(filesDir, "php/sessions").apply { mkdirs() }
-        return ProcessBuilder(
+        val processArguments = listOf(
             executable.absolutePath,
             "-d",
             "display_errors=1",
@@ -296,18 +308,18 @@ class PhpRuntimeService : Service() {
             "sys_temp_dir=${temporary.absolutePath}",
             "-d",
             "upload_tmp_dir=${temporary.absolutePath}",
-            "-S",
-            "127.0.0.1:${ProjectWorkspaceManager.LOCAL_PORT}",
-            "-t",
-            directory.absolutePath,
+        ) + command.argumentsFor(
+            host = bindHost,
+            port = ProjectWorkspaceManager.LOCAL_PORT,
         )
+        return ProcessBuilder(processArguments)
             .directory(directory)
             .redirectErrorStream(true)
             .apply {
                 environment().apply {
                     put("HOME", home.absolutePath)
                     put("TMPDIR", temporary.absolutePath)
-                    put("LINKORA_HOST", "127.0.0.1")
+                    put("LINKORA_HOST", bindHost)
                     put("LINKORA_PORT", ProjectWorkspaceManager.LOCAL_PORT.toString())
                     putMariaDbEnvironment(applicationContext)
                     prependToNativeLibraryPath(checkNotNull(executable.parentFile))

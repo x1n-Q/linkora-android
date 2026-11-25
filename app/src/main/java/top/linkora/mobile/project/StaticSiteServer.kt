@@ -3,9 +3,10 @@ package top.linkora.mobile.project
 import android.content.Context
 import fi.iki.elonen.NanoHTTPD
 import java.net.URLDecoder
+import top.linkora.mobile.settings.HostingSettings
 
 class StaticSiteServer(context: Context) :
-    NanoHTTPD("127.0.0.1", ProjectWorkspaceManager.LOCAL_PORT) {
+    NanoHTTPD(HostingSettings(context).read().bindHost, ProjectWorkspaceManager.LOCAL_PORT) {
     private val workspace = ProjectWorkspaceManager(context.applicationContext)
 
     override fun serve(session: IHTTPSession): Response {

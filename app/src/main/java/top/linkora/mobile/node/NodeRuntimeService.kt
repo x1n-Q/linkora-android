@@ -32,8 +32,12 @@ import top.linkora.mobile.R
 import top.linkora.mobile.connector.TunnelConnectorService
 import top.linkora.mobile.mariadb.putMariaDbEnvironment
 import top.linkora.mobile.php.PhpRuntimeService
+import top.linkora.mobile.project.ProjectCommand
+import top.linkora.mobile.project.ProjectExecutable
 import top.linkora.mobile.project.ProjectServerService
 import top.linkora.mobile.project.ProjectWorkspaceManager
+import top.linkora.mobile.runtime.RuntimeProcessTerminator
+import top.linkora.mobile.settings.HostingSettings
 
 class NodeRuntimeService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -134,15 +138,15 @@ class NodeRuntimeService : Service() {
 
                 NodeRuntimeStatus.update(
                     NodeRuntimePhase.Starting,
-                    "Starting ${launchConfig.entryPoint} on ${ProjectWorkspaceManager.LOCAL_URL}...",
+                    "Starting ${launchConfig.command.display()} on ${ProjectWorkspaceManager.LOCAL_URL}...",
                 )
                 updateNotification("Starting Node.js")
-                NodeRuntimeStatus.appendLog("node ${launchConfig.entryPoint}")
+                NodeRuntimeStatus.appendLog(launchConfig.command.display())
                 val process = startNodeProcess(
                     executable,
                     commandDirectory,
                     launchConfig.projectDirectory,
-                    launchConfig.entryPoint,
+                    launchConfig.command,
                 )
                 childProcess = process
                 runtimeStartedAtMs = SystemClock.elapsedRealtime()
@@ -366,8 +370,7 @@ class NodeRuntimeService : Service() {
 
     private fun terminateChildProcess() {
         val process = childProcess ?: return
-        runCatching { process.destroy() }
-        if (process.isAlive) runCatching { process.destroyForcibly() }
+        RuntimeProcessTerminator.terminate(process)
         childProcess = null
     }
 
@@ -375,9 +378,22 @@ class NodeRuntimeService : Service() {
         executable: File,
         commandDirectory: File,
         directory: File,
-        entryPoint: String,
-    ): Process =
-        ProcessBuilder(executable.absolutePath, entryPoint)
+        command: ProjectCommand,
+    ): Process {
+        val bindHost = HostingSettings(applicationContext).read().bindHost
+        val arguments = command.argumentsFor(
+            host = bindHost,
+            port = ProjectWorkspaceManager.LOCAL_PORT,
+        )
+        val processArguments = when (command.executable) {
+            ProjectExecutable.Node -> listOf(executable.absolutePath) + arguments
+            ProjectExecutable.Npm -> listOf(
+                executable.absolutePath,
+                NpmBundle.resolveCli(applicationContext).absolutePath,
+            ) + arguments
+            ProjectExecutable.Php -> error("A Node.js project cannot start with PHP.")
+        }
+        return ProcessBuilder(processArguments)
             .directory(directory)
             .redirectErrorStream(true)
             .apply {
@@ -386,7 +402,7 @@ class NodeRuntimeService : Service() {
                 environment().apply {
                     put("HOME", home.absolutePath)
                     put("TMPDIR", temporary.absolutePath)
-                    put("HOST", "127.0.0.1")
+                    put("HOST", bindHost)
                     put("PORT", ProjectWorkspaceManager.LOCAL_PORT.toString())
                     put("NODE_ENV", "production")
                     put("NODE_PATH", File(directory, "node_modules").absolutePath)
@@ -396,6 +412,7 @@ class NodeRuntimeService : Service() {
                 }
             }
             .start()
+    }
 
     private fun startNpmProcess(
         executable: File,

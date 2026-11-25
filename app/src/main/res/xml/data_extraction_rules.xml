@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data-extraction-rules>
+    <cloud-backup disableIfNoEncryptionCapabilities="true">
+        <exclude domain="sharedpref" path="linkora_secure_session.xml" />
+        <exclude domain="sharedpref" path="mariadb_credentials.xml" />
+        <exclude domain="file" path="node/" />
+        <exclude domain="file" path="php/" />
+        <exclude domain="file" path="mariadb/" />
+        <exclude domain="external" path="Download/runtime-packs/" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="linkora_secure_session.xml" />
+        <exclude domain="sharedpref" path="mariadb_credentials.xml" />
+        <exclude domain="file" path="node/" />
+        <exclude domain="file" path="php/" />
+        <exclude domain="file" path="mariadb/" />
+        <exclude domain="external" path="Download/runtime-packs/" />
+    </device-transfer>
+</data-extraction-rules>

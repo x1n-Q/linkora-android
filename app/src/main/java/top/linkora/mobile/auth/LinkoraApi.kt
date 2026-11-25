@@ -6,6 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import top.linkora.mobile.BuildConfig
 import top.linkora.mobile.publish.DomainPool
 import top.linkora.mobile.publish.ManagedHostname
 import top.linkora.mobile.publish.TunnelAccess
@@ -22,10 +23,13 @@ class LinkoraApi(
                 .toString(),
         )
 
+        val verificationUrl = LinkoraAuthUrlPolicy.allowedUrl(
+            data.requiredString("verificationUrl"),
+        ) ?: throw LinkoraApiException(502, "Linkora returned an unsafe sign-in address.")
         DeviceAuthorization(
             deviceCode = data.requiredString("deviceCode"),
             userCode = data.requiredString("userCode"),
-            verificationUrl = data.requiredString("verificationUrl"),
+            verificationUrl = verificationUrl,
             expiresInSeconds = data.optLong("expiresIn", 600L),
             pollIntervalSeconds = data.optLong("pollInterval", 3L).coerceAtLeast(1L),
         )
@@ -208,7 +212,7 @@ class LinkoraApi(
             connection.connectTimeout = 15_000
             connection.readTimeout = 20_000
             connection.setRequestProperty("Accept", "application/json")
-            connection.setRequestProperty("User-Agent", "Linkora-Android/0.3.2")
+            connection.setRequestProperty("User-Agent", "Linkora-Android/${BuildConfig.VERSION_NAME}")
             accessToken?.let {
                 connection.setRequestProperty("Authorization", "Bearer $it")
             }
