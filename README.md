@@ -1,113 +1,180 @@
-# Linkora for Android
+# Linkora Mobile
 
-Lightweight Android companion for Linkora, built with Kotlin and Jetpack Compose.
+Run and host web projects directly on an Android phone.
 
-## What works
+[Website](https://linkora.top/mobile) ·
+[Download APK](https://linkora.top/downloads/linkora-mobile-v0.7.0.apk) ·
+[VirusTotal report][virustotal] ·
+[MIT license](LICENSE)
 
-- Real static-site workspaces selected through Android Files
-- Real Node.js workspaces selected through Android Files
-- Verified headless Node.js 24 LTS Runtime Pack and npm, with no Termux dependency
-- Device-tested PHP 8.4 Runtime Pack with PDO SQLite and the built-in web server
-- Real PHP workspaces selected through Android Files, with persistent runtime data
-- In-app PHP start, restart, stop, preview, logs, uptime, and memory controls
-- In-app controls to install packages and start, restart, or stop Node.js projects
-- Editable starter files in `Download/LinkoraProjects/linkora-starter`
-- Persisted access to any selected folder containing `index.html`
-- Local HTTP server at `http://127.0.0.1:8787` that reads project files on every request
-- Static-site SPA route fallback and optional custom `404.html` responses
-- In-app live preview with manual reload
-- Live Node.js uptime, memory use, runtime logs, and foreground controls
-- Persistent, isolated runtime storage for every selected Node.js project
-- Built-in SQLite plus `better-sqlite3` and `sqlite3` compatibility adapters
-- Browser-based device authorization through Android Custom Tabs
-- Automatic approval polling and session restoration
-- Android Keystore-encrypted access-token storage
-- Standalone mode with no Linkora account or `linkora.top` dependency
-- Device-only and local-network project access
-- User-owned domain publishing through a Cloudflare Tunnel token
-- Selectable Node.js and PHP start commands with `{HOST}` and `{PORT}` placeholders
-- Linkora domain-pool and managed-hostname integration
-- New or existing Linkora URL assignment through the production API
-- Optional Linkora Connector Pack with foreground status and automatic reconnect
-- In-app Runtime Manager with background downloads, progress, verification, and install approval
-- Read-only MariaDB explorer with table previews and guarded SQL queries
-- CPU-neutral main APK with architecture-specific runtime selection
-- Linkora brand colors and Android launcher icon
+Linkora Mobile is a local-first project runtime built with Kotlin and Jetpack
+Compose. It can create or open real project folders, run supported web stacks,
+show logs and resource use, and keep a project active through an Android
+foreground service.
 
-Linkora-managed mode uses Linkora's one-time device authorization flow. The app opens the
-approval page on `linkora.top`, never receives the account password, and exchanges
-the approved request for a revocable device token.
+A Linkora account is optional. Standalone mode works without `linkora.top` or
+any Linkora service.
 
-Standalone mode does not require a Linkora account and does not call the Linkora
-API. Projects can stay device-only, be shared on the local network, or use a
-Cloudflare Tunnel configured by the user for their own domain.
+## Features
 
-## Project workflow
+- Create a project or open an existing folder through Android Files
+- Host static sites directly from the phone
+- Run Node.js and PHP projects through separately installed Runtime Packs
+- Add an optional local MariaDB server and inspect its databases in the app
+- Start, stop, restart, preview, and inspect project logs from one workspace
+- Keep projects running in the background with a persistent notification
+- Limit access to the phone, share on the local network, or publish a project
+- Use a Linkora address only when the user chooses to connect an account
+- Keep account tokens encrypted with Android Keystore
 
-1. Select **Linkora managed** or **Standalone** publishing.
-2. Select **Static site**, **Node.js**, or **PHP**. Sign in only in Linkora-managed mode.
-3. Use the included starter or tap **Choose project folder**.
-4. In Android Files, choose a folder containing `index.html` for a static site,
-   `package.json` and a supported JavaScript entry file for Node.js, or
-   `index.php` for PHP, or a Laravel project containing `artisan` and `public/index.php`.
-5. Edit the selected files with any Android file editor.
-6. For Node.js, install dependencies if needed and start the runtime. For PHP,
-   start the verified PHP Runtime Pack. Open the preview after it is running.
-7. Use the detected start command or set a `node`, `npm`, or `php` command.
-8. In managed mode, assign a Linkora URL. In standalone mode, keep the project
-   local, share it on the LAN, or connect a user-owned Cloudflare tunnel.
+## Install
 
-The starter in Downloads or the user-selected folder remains the source of
-truth. Static projects are served directly. Node.js source is synchronized into
-a private workspace whenever the runtime starts or restarts. Every selected
-project has separate persistent runtime storage, so generated databases,
-uploads, logs, and `node_modules` survive restarts without changing the source
-folder.
-The main app and static hosting work across Android CPU architectures. Current
-Node.js, PHP, MariaDB, and connector binaries are published for ARM64. The
-Runtime Manager resolves packs against the device ABI and never offers an
-incompatible package. Additional ABI builds can be registered in a main-app
-update after their payload hashes and device tests are complete. Python remains
-planned.
+Linkora Mobile `0.7.0` supports Android 8.0 and later.
 
-PHP projects must contain `index.php`, or Laravel's `artisan` and
-`public/index.php`. Linkora synchronizes selected project files into a private
-runtime workspace before each start or restart. Files created at runtime,
-including SQLite databases and uploads, remain available between restarts
-without modifying the selected source folder.
+1. [Download the signed APK](https://linkora.top/downloads/linkora-mobile-v0.7.0.apk).
+2. Open the downloaded file.
+3. Allow installation from the browser or file manager when Android asks.
+4. Open Linkora Mobile and choose how the project should be published.
+
+The base app can host static projects on any supported Android CPU
+architecture. Current Node.js, PHP, MariaDB, and connector Runtime Packs are
+available for 64-bit ARM devices (`arm64-v8a`).
+
+### Verify the release
+
+- **APK SHA-256**
+  `32b74ad04994cb0952c3f5865bf4ec230fecf2109ee98e5c92dc164979cb0894`
+- **Signing certificate SHA-256**
+  `30938a07ba42ca042033a78ac75f1730a5463d780e3d9a9119a762fa540c222d`
+- **Malware analysis**
+  [VirusTotal report][virustotal]
+
+Verify the checksum and signing certificate before installing an APK obtained
+from a mirror or another third-party source.
+
+## Supported projects
+
+- **Static site:** requires `index.html`; supported by the main app.
+- **Node.js:** requires `package.json` and a supported JavaScript entry file;
+  uses the Node.js Runtime Pack.
+- **PHP:** requires `index.php`; uses the PHP Runtime Pack.
+- **Laravel:** requires `artisan` and `public/index.php`; uses the PHP Runtime
+  Pack.
+- **MariaDB database:** available to Node.js and PHP projects through the
+  optional MariaDB Runtime Pack.
+
+The selected folder remains the source of truth. Static files are served from
+that folder. Node.js and PHP projects are synchronized into an isolated runtime
+workspace before they start. Generated databases, uploads, logs, and installed
+packages persist between restarts without rewriting the source folder.
+
+## Getting started
+
+1. Choose **Standalone** to use the app independently, or **Linkora managed**
+   to connect a Linkora address.
+2. Select **Static site**, **Node.js**, or **PHP**.
+3. Create a starter project or choose an existing project folder.
+4. Install the requested Runtime Pack when the project needs one.
+5. Review the detected command, then start the project.
+6. Open the local preview or choose a publishing option.
+
+## Publishing options
+
+- **Device only:** no account required; serves the project only on the phone
+  through `127.0.0.1`.
+- **Local network:** no account required; makes the project available to devices
+  on the same trusted network.
+- **Own domain:** no Linkora account required; uses a Cloudflare Tunnel token
+  supplied by the user.
+- **Linkora address:** requires a Linkora account and assigns an available
+  hostname through the Linkora API.
+
+Standalone mode does not call the Linkora API. Linkora-managed mode uses a
+browser-based device authorization flow, so the app never asks for or receives
+the account password.
+
+## Runtime Packs
+
+Large native runtimes are distributed as separate, headless Android packages.
+They have no launcher icon and do not run their own services. Linkora Mobile
+owns the project lifecycle and executes the verified runtime installed by
+Android Package Manager.
+
+The Runtime Manager:
+
+- downloads a pack only after the user approves it;
+- shows download progress inside the app;
+- checks the package identity, ABI, contract version, and payload hashes;
+- opens Android's package installer for final confirmation; and
+- uses no memory when an installed pack is not running.
+
+See [Runtime Packs](docs/runtime-packs.md) for the package contract and native
+runtime architecture.
+
+## Node.js compatibility
+
+Pure JavaScript dependencies are the supported baseline. Packages that require
+native addons or install scripts, including `sharp` and native `bcrypt`, may not
+install or run on Android.
+
+Linkora provides compatibility adapters for common `better-sqlite3` and
+`sqlite3` APIs using Node's built-in SQLite module. See
+[SQLite compatibility](docs/sqlite-compatibility.md) for the supported API
+surface and current limitations.
 
 Node.js servers should listen on `process.env.HOST` and `process.env.PORT`.
-Linkora supplies both values and supports `{HOST}` and `{PORT}` placeholders in
-custom start commands. Local-network sharing changes the supplied host from
-`127.0.0.1` to `0.0.0.0`; the local port remains `8787`.
+Custom commands can use the `{HOST}` and `{PORT}` placeholders provided by the
+app.
 
-The Android Node.js runtime is experimental. Pure JavaScript packages are the
-supported baseline. Linkora adapts common `better-sqlite3` and `sqlite3` APIs to
-Node's built-in SQLite module inside the private runtime copy. Other packages
-containing native code or install scripts, such as `sharp` and native `bcrypt`,
-may not install or run. See
-[`docs/sqlite-compatibility.md`](docs/sqlite-compatibility.md) for the supported
-SQLite surface and limitations.
+## Build from source
 
-## Build requirements
+Requirements:
 
-- Android SDK 37 and Build Tools 36.0.0
 - JDK 17
-- Gradle 9.6 through the included wrapper configuration
+- Android SDK 37
+- Android Build Tools 36.0.0
 
-To reproduce the runtime binaries, follow
-[`docs/node-runtime-build.md`](docs/node-runtime-build.md) and
-[`docs/php-runtime-build.md`](docs/php-runtime-build.md). Run
-`./gradlew :app:assembleDebug :runtime-node:assembleDebug :runtime-php:assembleDebug :runtime-mariadb:assembleDebug :runtime-connector:assembleDebug`
-and install the main APK plus the runtime packs required by the project.
-Runtime-pack design and verification are documented in
-[`docs/runtime-packs.md`](docs/runtime-packs.md). Android Studio is optional.
+Build and test the main application:
 
-## F-Droid preparation
+```bash
+./gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+```
 
-F-Droid metadata is maintained in `.fdroid.yml` and `fastlane/metadata/android`.
-The main-app recipe removes all prebuilt runtime payloads and excludes the
-runtime-pack modules before building the architecture-neutral APK from source.
-Static hosting remains fully functional; native runtimes are separate FOSS
-applications with their own release and review process. See
-[`docs/fdroid-release.md`](docs/fdroid-release.md) for the release checklist.
+Build the optional Runtime Pack applications:
+
+```bash
+./gradlew \
+  :runtime-node:assembleDebug \
+  :runtime-php:assembleDebug \
+  :runtime-mariadb:assembleDebug \
+  :runtime-connector:assembleDebug
+```
+
+The native runtime binaries are not produced by Gradle. Their source versions,
+build procedures, checksums, and licenses are documented separately:
+
+- [Node.js runtime build](docs/node-runtime-build.md)
+- [PHP runtime build](docs/php-runtime-build.md)
+- [MariaDB runtime build](docs/mariadb-runtime-build.md)
+- [Connector build](docs/connector-build.md)
+- [Third-party notices](THIRD_PARTY_NOTICES.md)
+
+## Distribution
+
+The production-signed APK is distributed from the official Linkora website.
+Additional app stores and package repositories may be added after their review
+requirements are complete.
+
+## Contributing
+
+Bug reports and focused pull requests are welcome. Read
+[CONTRIBUTING.md](CONTRIBUTING.md) before submitting a change. Report security
+issues through the process in [SECURITY.md](SECURITY.md), not a public issue.
+
+## License
+
+Linkora Mobile source code is available under the [MIT License](LICENSE).
+Bundled and optional third-party components retain their own licenses; see
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+[virustotal]: https://www.virustotal.com/gui/file/32b74ad04994cb0952c3f5865bf4ec230fecf2109ee98e5c92dc164979cb0894?nocache=1
