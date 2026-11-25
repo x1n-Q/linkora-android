@@ -1,0 +1,1478 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#ffffff">
+  <title>Linkora Mobile Clean UI Draft</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --canvas: #edf0ee;
+      --app: #f7f8f6;
+      --surface: #ffffff;
+      --surface-muted: #f0f2ef;
+      --line: #d8ddd8;
+      --line-strong: #bcc4bd;
+      --ink: #202421;
+      --muted: #687169;
+      --brand: #813c42;
+      --brand-dark: #673036;
+      --brand-soft: #f5e9ea;
+      --success: #267553;
+      --success-soft: #e7f3ec;
+      --info: #286a9b;
+      --info-soft: #e8f1f7;
+      --warning: #9b671c;
+      --warning-soft: #fbf2df;
+      --danger: #a63f48;
+      --shadow: 0 18px 52px rgba(22, 31, 25, 0.14);
+      --radius: 8px;
+      --tap: 46px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      letter-spacing: 0;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+      margin: 0;
+    }
+
+    body {
+      display: grid;
+      place-items: center;
+      background: var(--canvas);
+      color: var(--ink);
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .prototype {
+      position: relative;
+      width: min(100%, 430px);
+      height: min(900px, 100dvh);
+      overflow: hidden;
+      background: var(--app);
+      border: 1px solid var(--line-strong);
+      box-shadow: var(--shadow);
+    }
+
+    .app-bar {
+      position: absolute;
+      z-index: 20;
+      inset: 0 0 auto;
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      background: rgba(255, 255, 255, 0.97);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--ink);
+      text-decoration: none;
+    }
+
+    .brand img {
+      width: 20px;
+      height: 28px;
+      object-fit: contain;
+    }
+
+    .brand span {
+      font-size: 24px;
+      font-weight: 760;
+    }
+
+    .app-bar-title {
+      display: flex;
+      align-items: center;
+      min-width: 0;
+      gap: 8px;
+    }
+
+    .app-bar-title strong {
+      overflow: hidden;
+      font-size: 17px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .icon-button {
+      width: var(--tap);
+      height: var(--tap);
+      display: inline-grid;
+      flex: 0 0 auto;
+      place-items: center;
+      padding: 0;
+      color: var(--ink);
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 6px;
+    }
+
+    .icon-button:hover,
+    .icon-button:focus-visible {
+      background: var(--surface-muted);
+      border-color: var(--line);
+    }
+
+    .icon-button svg,
+    .button svg,
+    .nav-button svg,
+    .row-icon svg {
+      width: 20px;
+      height: 20px;
+      stroke-width: 2;
+    }
+
+    .app-content {
+      position: absolute;
+      inset: 72px 0 76px;
+      overflow: hidden;
+    }
+
+    .screen {
+      display: none;
+      height: 100%;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: 24px 18px 32px;
+    }
+
+    .screen.active {
+      display: block;
+    }
+
+    .screen-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 30px;
+      line-height: 1.12;
+    }
+
+    h2 {
+      font-size: 20px;
+      line-height: 1.25;
+    }
+
+    h3 {
+      font-size: 16px;
+      line-height: 1.3;
+    }
+
+    .subheading {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .button {
+      min-height: var(--tap);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 14px;
+      color: var(--surface);
+      background: var(--brand);
+      border: 1px solid var(--brand);
+      border-radius: 6px;
+      font-weight: 700;
+    }
+
+    .button:hover,
+    .button:focus-visible {
+      background: var(--brand-dark);
+      border-color: var(--brand-dark);
+    }
+
+    .button.secondary {
+      color: var(--ink);
+      background: var(--surface);
+      border-color: var(--line-strong);
+    }
+
+    .button.secondary:hover,
+    .button.secondary:focus-visible {
+      background: var(--surface-muted);
+    }
+
+    .button.danger {
+      color: var(--danger);
+      background: var(--surface);
+      border-color: #dbaeb2;
+    }
+
+    .button.full {
+      width: 100%;
+    }
+
+    .button:disabled {
+      cursor: default;
+      opacity: 0.48;
+    }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 22px;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 24px 0 12px;
+    }
+
+    .section-title:first-child {
+      margin-top: 0;
+    }
+
+    .section-title span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .project-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .project-card {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 12px;
+      padding: 15px;
+      text-align: left;
+      color: var(--ink);
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+
+    .project-card:hover,
+    .project-card:focus-visible {
+      border-color: var(--brand);
+      box-shadow: 0 4px 14px rgba(23, 30, 25, 0.06);
+    }
+
+    .project-type {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      color: var(--brand);
+      background: var(--brand-soft);
+      border-radius: 7px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .project-copy {
+      min-width: 0;
+    }
+
+    .project-copy strong,
+    .project-copy span {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .project-copy strong {
+      font-size: 15px;
+    }
+
+    .project-copy span {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 28px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      color: var(--muted);
+      background: var(--surface-muted);
+      font-size: 11px;
+      font-weight: 750;
+      white-space: nowrap;
+    }
+
+    .status::before {
+      width: 7px;
+      height: 7px;
+      content: "";
+      background: currentColor;
+      border-radius: 50%;
+    }
+
+    .status.running {
+      color: var(--success);
+      background: var(--success-soft);
+    }
+
+    .status.warning {
+      color: var(--warning);
+      background: var(--warning-soft);
+    }
+
+    .empty-note {
+      margin-top: 16px;
+      padding: 14px 0;
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .project-summary {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: flex-start;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .project-summary > div {
+      min-width: 0;
+    }
+
+    .project-summary h1 {
+      font-size: 25px;
+    }
+
+    .segmented {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 3px;
+      margin-bottom: 20px;
+      padding: 3px;
+      background: #e7eae7;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+    }
+
+    .segment {
+      min-height: 40px;
+      padding: 8px;
+      color: var(--muted);
+      background: transparent;
+      border: 0;
+      border-radius: 5px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .segment.active {
+      color: var(--ink);
+      background: var(--surface);
+      box-shadow: 0 1px 4px rgba(21, 27, 23, 0.1);
+    }
+
+    .project-panel {
+      display: none;
+    }
+
+    .project-panel.active {
+      display: block;
+    }
+
+    .runtime-band {
+      margin: 0 -18px 20px;
+      padding: 18px;
+      color: #f5fff8;
+      background: #22352c;
+    }
+
+    .runtime-band-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .runtime-band h2 {
+      font-size: 18px;
+    }
+
+    .runtime-band p {
+      margin-top: 5px;
+      color: #bfd1c5;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+    }
+
+    .runtime-actions {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .runtime-band .button.secondary {
+      color: #f5fff8;
+      background: transparent;
+      border-color: #697c70;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      margin-bottom: 20px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+
+    .metric {
+      min-width: 0;
+      padding: 14px 10px;
+      border-right: 1px solid var(--line);
+    }
+
+    .metric:last-child {
+      border-right: 0;
+    }
+
+    .metric span,
+    .metric strong {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .metric strong {
+      margin-top: 5px;
+      font-size: 14px;
+    }
+
+    .list-group {
+      overflow: hidden;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+
+    .list-row {
+      min-height: 62px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 13px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .list-row:last-child {
+      border-bottom: 0;
+    }
+
+    button.list-row {
+      width: 100%;
+      color: var(--ink);
+      text-align: left;
+      background: var(--surface);
+      border-top: 0;
+      border-right: 0;
+      border-left: 0;
+    }
+
+    button.list-row:hover,
+    button.list-row:focus-visible {
+      background: #fafbfa;
+    }
+
+    .row-icon {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      flex: 0 0 auto;
+      place-items: center;
+      color: var(--brand);
+      background: var(--brand-soft);
+      border-radius: 7px;
+    }
+
+    .row-copy {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .row-copy strong,
+    .row-copy span {
+      display: block;
+    }
+
+    .row-copy strong {
+      font-size: 14px;
+    }
+
+    .row-copy span {
+      margin-top: 3px;
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 12px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .row-value {
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    details.advanced {
+      margin-top: 20px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+
+    details.advanced summary {
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 700;
+      list-style: none;
+    }
+
+    details.advanced summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .advanced-body {
+      padding: 14px;
+      border-top: 1px solid var(--line);
+    }
+
+    label {
+      display: block;
+      margin-bottom: 7px;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      min-height: var(--tap);
+      padding: 10px 12px;
+      color: var(--ink);
+      background: var(--surface);
+      border: 1px solid var(--line-strong);
+      border-radius: 6px;
+      outline: none;
+    }
+
+    input[type="text"]:focus {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px var(--brand-soft);
+    }
+
+    .field-note {
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+
+    .log-view {
+      min-height: 300px;
+      margin: 0;
+      overflow: auto;
+      padding: 16px;
+      color: #dce9df;
+      background: #1f2521;
+      border-radius: var(--radius);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      line-height: 1.65;
+      white-space: pre-wrap;
+    }
+
+    .publish-options {
+      display: grid;
+      gap: 10px;
+    }
+
+    .publish-option {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+      color: var(--ink);
+      text-align: left;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+
+    .publish-option.selected {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 2px var(--brand-soft);
+    }
+
+    .radio-dot {
+      width: 18px;
+      height: 18px;
+      display: grid;
+      place-items: center;
+      border: 2px solid var(--line-strong);
+      border-radius: 50%;
+    }
+
+    .selected .radio-dot {
+      border-color: var(--brand);
+    }
+
+    .selected .radio-dot::after {
+      width: 8px;
+      height: 8px;
+      content: "";
+      background: var(--brand);
+      border-radius: 50%;
+    }
+
+    .option-copy strong,
+    .option-copy span {
+      display: block;
+    }
+
+    .option-copy strong {
+      font-size: 14px;
+    }
+
+    .option-copy span {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .publish-detail {
+      display: none;
+      margin-top: 18px;
+    }
+
+    .publish-detail.visible {
+      display: block;
+    }
+
+    .choice-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .choice-button {
+      min-height: 86px;
+      padding: 12px;
+      color: var(--ink);
+      text-align: left;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+
+    .choice-button strong,
+    .choice-button span {
+      display: block;
+    }
+
+    .choice-button span {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .choice-button.selected {
+      border-color: var(--brand);
+      background: var(--brand-soft);
+    }
+
+    .domain-form {
+      display: none;
+      gap: 12px;
+    }
+
+    .domain-form.visible {
+      display: grid;
+    }
+
+    .activity-list {
+      position: relative;
+      padding-left: 18px;
+    }
+
+    .activity-list::before {
+      position: absolute;
+      inset: 8px auto 8px 5px;
+      width: 1px;
+      content: "";
+      background: var(--line-strong);
+    }
+
+    .activity-item {
+      position: relative;
+      padding: 0 0 20px 12px;
+    }
+
+    .activity-item::before {
+      position: absolute;
+      top: 5px;
+      left: -17px;
+      width: 9px;
+      height: 9px;
+      content: "";
+      background: var(--success);
+      border: 3px solid var(--app);
+      border-radius: 50%;
+    }
+
+    .activity-item strong,
+    .activity-item span,
+    .activity-item time {
+      display: block;
+    }
+
+    .activity-item strong {
+      font-size: 14px;
+    }
+
+    .activity-item span {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .activity-item time {
+      margin-top: 6px;
+      color: #8a938b;
+      font-size: 11px;
+    }
+
+    .bottom-nav {
+      position: absolute;
+      z-index: 20;
+      inset: auto 0 0;
+      height: 76px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      padding: 6px 8px max(6px, env(safe-area-inset-bottom));
+      background: rgba(255, 255, 255, 0.98);
+      border-top: 1px solid var(--line);
+    }
+
+    .nav-button {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      color: var(--muted);
+      background: transparent;
+      border: 0;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .nav-button.active {
+      color: var(--brand);
+      background: var(--brand-soft);
+    }
+
+    .sheet-backdrop {
+      position: absolute;
+      z-index: 50;
+      inset: 0;
+      display: none;
+      align-items: flex-end;
+      background: rgba(18, 23, 20, 0.48);
+    }
+
+    .sheet-backdrop.visible {
+      display: flex;
+    }
+
+    .sheet {
+      width: 100%;
+      max-height: 84%;
+      overflow-y: auto;
+      padding: 20px 18px calc(22px + env(safe-area-inset-bottom));
+      background: var(--surface);
+      border-top: 1px solid var(--line-strong);
+      border-radius: 8px 8px 0 0;
+      box-shadow: 0 -12px 36px rgba(18, 23, 20, 0.16);
+    }
+
+    .sheet-handle {
+      width: 42px;
+      height: 4px;
+      margin: -7px auto 18px;
+      background: var(--line-strong);
+      border-radius: 999px;
+    }
+
+    .sheet-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .source-list {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .source-button {
+      min-height: 72px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      color: var(--ink);
+      text-align: left;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+    }
+
+    .source-button.selected {
+      border-color: var(--brand);
+      background: var(--brand-soft);
+    }
+
+    .source-button .row-icon {
+      background: var(--surface-muted);
+    }
+
+    .toast {
+      position: absolute;
+      z-index: 80;
+      left: 50%;
+      bottom: 90px;
+      display: none;
+      max-width: calc(100% - 36px);
+      padding: 11px 14px;
+      color: #f4f7f4;
+      background: #222a25;
+      border-radius: 6px;
+      box-shadow: 0 8px 24px rgba(18, 23, 20, 0.24);
+      font-size: 13px;
+      transform: translateX(-50%);
+    }
+
+    .toast.visible {
+      display: block;
+    }
+
+    @media (max-width: 430px) {
+      body {
+        display: block;
+        background: var(--app);
+      }
+
+      .prototype {
+        width: 100%;
+        height: 100dvh;
+        border: 0;
+        box-shadow: none;
+      }
+    }
+
+    @media (max-width: 350px) {
+      .screen {
+        padding-right: 14px;
+        padding-left: 14px;
+      }
+
+      .runtime-band {
+        margin-right: -14px;
+        margin-left: -14px;
+      }
+
+      .project-card {
+        grid-template-columns: 38px minmax(0, 1fr);
+      }
+
+      .project-card .status {
+        grid-column: 2;
+        justify-self: start;
+      }
+
+      .choice-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="prototype" aria-label="Linkora Mobile interface prototype">
+    <header class="app-bar" id="app-bar">
+      <a class="brand" href="#projects" data-go="projects" aria-label="Linkora projects">
+        <img src="../../app/src/main/assets/starter-site/linkora-mark.svg" alt="">
+        <span>linkora</span>
+      </a>
+      <button class="icon-button" type="button" id="header-action" title="New project" aria-label="New project">
+        <i data-lucide="plus"></i>
+      </button>
+    </header>
+
+    <div class="app-content">
+      <section class="screen active" id="screen-projects" data-screen="projects">
+        <div class="screen-heading">
+          <div>
+            <h1>Projects</h1>
+            <p class="subheading">Run and publish from this phone.</p>
+          </div>
+          <span class="status running">1 running</span>
+        </div>
+
+        <div class="toolbar">
+          <button class="button" type="button" data-open-sheet>
+            <i data-lucide="plus"></i>
+            New project
+          </button>
+          <button class="button secondary" type="button" data-open-folder>
+            <i data-lucide="folder-open"></i>
+            Open folder
+          </button>
+        </div>
+
+        <div class="section-title">
+          <h2>Your projects</h2>
+          <span>3 total</span>
+        </div>
+        <div class="project-list">
+          <button class="project-card" type="button" data-open-project>
+            <span class="project-type">NODE</span>
+            <span class="project-copy">
+              <strong>Linkora Node Sample</strong>
+              <span>Local address active</span>
+            </span>
+            <span class="status running">Running</span>
+          </button>
+          <button class="project-card" type="button" data-open-project>
+            <span class="project-type">PHP</span>
+            <span class="project-copy">
+              <strong>Sari-Sari Store</strong>
+              <span>PHP 8.4 with MariaDB</span>
+            </span>
+            <span class="status">Stopped</span>
+          </button>
+          <button class="project-card" type="button" data-open-project>
+            <span class="project-type">HTML</span>
+            <span class="project-copy">
+              <strong>Portfolio</strong>
+              <span>Static website</span>
+            </span>
+            <span class="status">Stopped</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-project" data-screen="project">
+        <div class="project-summary">
+          <div>
+            <p class="subheading" style="margin:0 0 5px">Node.js project</p>
+            <h1>Linkora Node Sample</h1>
+          </div>
+          <span class="status running" id="project-status">Running</span>
+        </div>
+
+        <div class="segmented" role="tablist" aria-label="Project sections">
+          <button class="segment active" type="button" role="tab" data-project-tab="overview">Overview</button>
+          <button class="segment" type="button" role="tab" data-project-tab="logs">Logs</button>
+          <button class="segment" type="button" role="tab" data-project-tab="publish">Publish</button>
+        </div>
+
+        <div class="project-panel active" data-project-panel="overview">
+          <div class="runtime-band">
+            <div class="runtime-band-top">
+              <div>
+                <h2 id="runtime-title">Project is running</h2>
+                <p id="runtime-url">http://127.0.0.1:8787</p>
+              </div>
+              <span class="status running" id="runtime-status">Online</span>
+            </div>
+            <div class="runtime-actions">
+              <button class="button" type="button" id="primary-runtime-action">
+                <i data-lucide="external-link"></i>
+                Open preview
+              </button>
+              <button class="button secondary" type="button" id="stop-runtime" title="Stop project" aria-label="Stop project">
+                <i data-lucide="square"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="metric-grid" aria-label="Runtime information">
+            <div class="metric"><span>Uptime</span><strong id="uptime">12 min</strong></div>
+            <div class="metric"><span>Memory</span><strong id="memory">86 MB</strong></div>
+            <div class="metric"><span>Runtime</span><strong>Node 24</strong></div>
+          </div>
+
+          <div class="section-title"><h2>Project</h2></div>
+          <div class="list-group">
+            <button class="list-row" type="button" data-open-folder>
+              <span class="row-icon"><i data-lucide="folder"></i></span>
+              <span class="row-copy"><strong>Files</strong><span>Download/LinkoraProjects/node-sample</span></span>
+              <i data-lucide="chevron-right"></i>
+            </button>
+            <button class="list-row" type="button" data-project-tab-jump="logs">
+              <span class="row-icon"><i data-lucide="terminal-square"></i></span>
+              <span class="row-copy"><strong>Runtime logs</strong><span>No errors</span></span>
+              <i data-lucide="chevron-right"></i>
+            </button>
+            <div class="list-row">
+              <span class="row-icon"><i data-lucide="database"></i></span>
+              <span class="row-copy"><strong>Database</strong><span>Not enabled</span></span>
+              <button class="button secondary" type="button" style="min-height:36px;padding:6px 10px">Enable</button>
+            </div>
+          </div>
+
+          <details class="advanced">
+            <summary>Advanced <i data-lucide="chevron-down"></i></summary>
+            <div class="advanced-body">
+              <label for="start-command">Start command</label>
+              <input id="start-command" type="text" value="npm start">
+              <p class="field-note">Use {HOST} and {PORT} when your project accepts address arguments.</p>
+            </div>
+          </details>
+        </div>
+
+        <div class="project-panel" data-project-panel="logs">
+          <div class="section-title">
+            <h2>Runtime logs</h2>
+            <button class="icon-button" type="button" title="Clear logs" aria-label="Clear logs"><i data-lucide="trash-2"></i></button>
+          </div>
+          <pre class="log-view"><span style="color:#8da897">18:41:02</span> Starting npm start
+<span style="color:#8da897">18:41:03</span> Node.js 24.22.1
+<span style="color:#8da897">18:41:03</span> Listening on 127.0.0.1:8787
+<span style="color:#77c798">18:41:04</span> Project ready
+<span style="color:#8da897">18:42:16</span> GET / 200
+<span style="color:#8da897">18:42:17</span> GET /styles.css 200</pre>
+        </div>
+
+        <div class="project-panel" data-project-panel="publish">
+          <div class="section-title"><h2>Who can open it?</h2></div>
+          <div class="publish-options">
+            <button class="publish-option selected" type="button" data-access="device">
+              <span class="radio-dot"></span>
+              <span class="option-copy"><strong>This phone only</strong><span>Private local preview</span></span>
+              <i data-lucide="smartphone"></i>
+            </button>
+            <button class="publish-option" type="button" data-access="lan">
+              <span class="radio-dot"></span>
+              <span class="option-copy"><strong>Local network</strong><span>Devices on the same Wi-Fi</span></span>
+              <i data-lucide="wifi"></i>
+            </button>
+            <button class="publish-option" type="button" data-access="public">
+              <span class="radio-dot"></span>
+              <span class="option-copy"><strong>Public URL</strong><span>Open from anywhere</span></span>
+              <i data-lucide="globe-2"></i>
+            </button>
+          </div>
+
+          <div class="publish-detail" id="public-options">
+            <div class="section-title"><h2>Choose an address</h2></div>
+            <div class="choice-grid">
+              <button class="choice-button" type="button" data-provider="linkora">
+                <strong>Linkora address</strong>
+                <span>Free hostname managed by Linkora</span>
+              </button>
+              <button class="choice-button" type="button" data-provider="own">
+                <strong>My own domain</strong>
+                <span>Use your Cloudflare tunnel</span>
+              </button>
+            </div>
+            <div class="domain-form" id="linkora-form">
+              <p class="subheading" style="margin:0">Sign in to reserve or connect a Linkora hostname.</p>
+              <button class="button full" type="button" data-toast="Opening secure Linkora sign-in">Continue with Linkora</button>
+            </div>
+            <div class="domain-form" id="own-domain-form">
+              <div>
+                <label for="hostname">Public hostname</label>
+                <input id="hostname" type="text" placeholder="app.example.com">
+              </div>
+              <div>
+                <label for="tunnel-token">Cloudflare tunnel token</label>
+                <input id="tunnel-token" type="text" placeholder="Paste token">
+              </div>
+              <button class="button full" type="button" data-toast="Domain connection saved">Connect domain</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-activity" data-screen="activity">
+        <div class="screen-heading">
+          <div>
+            <h1>Activity</h1>
+            <p class="subheading">Recent project events.</p>
+          </div>
+          <button class="icon-button" type="button" title="Refresh" aria-label="Refresh activity"><i data-lucide="refresh-cw"></i></button>
+        </div>
+        <div class="activity-list">
+          <div class="activity-item">
+            <strong>Node Sample started</strong>
+            <span>Listening on this phone at port 8787.</span>
+            <time>Just now</time>
+          </div>
+          <div class="activity-item">
+            <strong>MariaDB stopped</strong>
+            <span>Sari-Sari Store database shut down normally.</span>
+            <time>18 minutes ago</time>
+          </div>
+          <div class="activity-item">
+            <strong>Runtime installed</strong>
+            <span>PHP 8.4 is ready for projects.</span>
+            <time>Yesterday</time>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-settings" data-screen="settings">
+        <div class="screen-heading">
+          <div>
+            <h1>Settings</h1>
+            <p class="subheading">App, runtime, and account options.</p>
+          </div>
+        </div>
+
+        <div class="section-title"><h2>Runtimes</h2></div>
+        <div class="list-group">
+          <button class="list-row" type="button">
+            <span class="row-icon"><i data-lucide="box"></i></span>
+            <span class="row-copy"><strong>Node.js</strong><span>Version 24.22.1</span></span>
+            <span class="status running">Ready</span>
+          </button>
+          <button class="list-row" type="button">
+            <span class="row-icon"><i data-lucide="box"></i></span>
+            <span class="row-copy"><strong>PHP</strong><span>Version 8.4.27</span></span>
+            <span class="status running">Ready</span>
+          </button>
+          <button class="list-row" type="button">
+            <span class="row-icon"><i data-lucide="database"></i></span>
+            <span class="row-copy"><strong>MariaDB</strong><span>Optional database</span></span>
+            <span class="status running">Ready</span>
+          </button>
+        </div>
+
+        <div class="section-title"><h2>Linkora account</h2></div>
+        <div class="list-group">
+          <button class="list-row" type="button" data-toast="Linkora sign-in is requested only when needed">
+            <span class="row-icon"><i data-lucide="user-round"></i></span>
+            <span class="row-copy"><strong>Not signed in</strong><span>Only needed for a Linkora address</span></span>
+            <i data-lucide="chevron-right"></i>
+          </button>
+        </div>
+
+        <div class="section-title"><h2>General</h2></div>
+        <div class="list-group">
+          <button class="list-row" type="button">
+            <span class="row-icon"><i data-lucide="bell"></i></span>
+            <span class="row-copy"><strong>Runtime notification</strong><span>Show running projects and memory</span></span>
+            <span class="row-value">On</span>
+          </button>
+          <button class="list-row" type="button">
+            <span class="row-icon"><i data-lucide="info"></i></span>
+            <span class="row-copy"><strong>About Linkora</strong><span>Version 0.7.0</span></span>
+            <i data-lucide="chevron-right"></i>
+          </button>
+        </div>
+      </section>
+    </div>
+
+    <nav class="bottom-nav" aria-label="Main navigation">
+      <button class="nav-button active" type="button" data-go="projects">
+        <i data-lucide="folder-kanban"></i>
+        <span>Projects</span>
+      </button>
+      <button class="nav-button" type="button" data-go="activity">
+        <i data-lucide="activity"></i>
+        <span>Activity</span>
+      </button>
+      <button class="nav-button" type="button" data-go="settings">
+        <i data-lucide="settings"></i>
+        <span>Settings</span>
+      </button>
+    </nav>
+
+    <div class="sheet-backdrop" id="new-project-sheet" role="dialog" aria-modal="true" aria-labelledby="new-project-title">
+      <div class="sheet">
+        <div class="sheet-handle"></div>
+        <div class="sheet-heading">
+          <div>
+            <h2 id="new-project-title">New project</h2>
+            <p class="subheading">Choose where to begin.</p>
+          </div>
+          <button class="icon-button" type="button" data-close-sheet title="Close" aria-label="Close"><i data-lucide="x"></i></button>
+        </div>
+        <div class="source-list">
+          <button class="source-button selected" type="button" data-source>
+            <span class="row-icon"><i data-lucide="sparkles"></i></span>
+            <span class="row-copy"><strong>Start with a sample</strong><span>Create a working HTML, Node.js, or PHP project</span></span>
+          </button>
+          <button class="source-button" type="button" data-source>
+            <span class="row-icon"><i data-lucide="folder-open"></i></span>
+            <span class="row-copy"><strong>Open an existing folder</strong><span>Linkora detects the project type</span></span>
+          </button>
+        </div>
+        <button class="button full" type="button" id="continue-new-project">Continue</button>
+      </div>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </main>
+
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script>
+    const screens = [...document.querySelectorAll('[data-screen]')];
+    const navButtons = [...document.querySelectorAll('.nav-button')];
+    const headerAction = document.querySelector('#header-action');
+    const appBar = document.querySelector('#app-bar');
+    const sheet = document.querySelector('#new-project-sheet');
+    const toast = document.querySelector('#toast');
+    let currentScreen = 'projects';
+    let toastTimer;
+
+    function renderIcons() {
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function showScreen(name) {
+      currentScreen = name;
+      screens.forEach((screen) => screen.classList.toggle('active', screen.dataset.screen === name));
+      navButtons.forEach((button) => {
+        button.classList.toggle('active', button.dataset.go === name || (name === 'project' && button.dataset.go === 'projects'));
+      });
+
+      if (name === 'project') {
+        appBar.innerHTML = `
+          <div class="app-bar-title">
+            <button class="icon-button" type="button" data-go="projects" title="Back to projects" aria-label="Back to projects"><i data-lucide="arrow-left"></i></button>
+            <strong>Project</strong>
+          </div>
+          <button class="icon-button" type="button" title="Project menu" aria-label="Project menu"><i data-lucide="more-vertical"></i></button>`;
+      } else {
+        appBar.innerHTML = `
+          <a class="brand" href="#projects" data-go="projects" aria-label="Linkora projects">
+            <img src="../../app/src/main/assets/starter-site/linkora-mark.svg" alt="">
+            <span>linkora</span>
+          </a>
+          <button class="icon-button" type="button" id="header-action" title="New project" aria-label="New project"><i data-lucide="plus"></i></button>`;
+      }
+      bindDynamicHeader();
+      renderIcons();
+    }
+
+    function bindDynamicHeader() {
+      appBar.querySelectorAll('[data-go]').forEach((button) => {
+        button.addEventListener('click', (event) => {
+          event.preventDefault();
+          showScreen(button.dataset.go);
+        });
+      });
+      const action = appBar.querySelector('#header-action');
+      if (action) action.addEventListener('click', openSheet);
+    }
+
+    function openSheet() {
+      sheet.classList.add('visible');
+    }
+
+    function closeSheet() {
+      sheet.classList.remove('visible');
+    }
+
+    function showToast(message) {
+      window.clearTimeout(toastTimer);
+      toast.textContent = message;
+      toast.classList.add('visible');
+      toastTimer = window.setTimeout(() => toast.classList.remove('visible'), 2200);
+    }
+
+    document.addEventListener('click', (event) => {
+      const go = event.target.closest('[data-go]');
+      if (go && !appBar.contains(go)) {
+        event.preventDefault();
+        showScreen(go.dataset.go);
+      }
+
+      if (event.target.closest('[data-open-sheet]')) openSheet();
+      if (event.target.closest('[data-close-sheet]')) closeSheet();
+      if (event.target === sheet) closeSheet();
+      if (event.target.closest('[data-open-project]')) showScreen('project');
+      if (event.target.closest('[data-open-folder]')) showToast('Opening Android file picker');
+
+      const toastTarget = event.target.closest('[data-toast]');
+      if (toastTarget) showToast(toastTarget.dataset.toast);
+    });
+
+    document.querySelectorAll('[data-source]').forEach((button) => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('[data-source]').forEach((item) => item.classList.remove('selected'));
+        button.classList.add('selected');
+      });
+    });
+
+    document.querySelector('#continue-new-project').addEventListener('click', () => {
+      closeSheet();
+      showToast('Next: choose a project type');
+    });
+
+    function selectProjectTab(name) {
+      document.querySelectorAll('[data-project-tab]').forEach((button) => {
+        button.classList.toggle('active', button.dataset.projectTab === name);
+      });
+      document.querySelectorAll('[data-project-panel]').forEach((panel) => {
+        panel.classList.toggle('active', panel.dataset.projectPanel === name);
+      });
+    }
+
+    document.querySelectorAll('[data-project-tab]').forEach((button) => {
+      button.addEventListener('click', () => selectProjectTab(button.dataset.projectTab));
+    });
+    document.querySelectorAll('[data-project-tab-jump]').forEach((button) => {
+      button.addEventListener('click', () => selectProjectTab(button.dataset.projectTabJump));
+    });
+
+    document.querySelectorAll('[data-access]').forEach((button) => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('[data-access]').forEach((item) => item.classList.remove('selected'));
+        button.classList.add('selected');
+        document.querySelector('#public-options').classList.toggle('visible', button.dataset.access === 'public');
+        if (button.dataset.access === 'lan') showToast('Local network address: 192.168.100.69:8787');
+      });
+    });
+
+    document.querySelectorAll('[data-provider]').forEach((button) => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('[data-provider]').forEach((item) => item.classList.remove('selected'));
+        button.classList.add('selected');
+        document.querySelector('#linkora-form').classList.toggle('visible', button.dataset.provider === 'linkora');
+        document.querySelector('#own-domain-form').classList.toggle('visible', button.dataset.provider === 'own');
+      });
+    });
+
+    let running = true;
+    const projectStatus = document.querySelector('#project-status');
+    const runtimeStatus = document.querySelector('#runtime-status');
+    const runtimeTitle = document.querySelector('#runtime-title');
+    const runtimeUrl = document.querySelector('#runtime-url');
+    const primaryRuntimeAction = document.querySelector('#primary-runtime-action');
+    const stopRuntime = document.querySelector('#stop-runtime');
+
+    function updateRuntime() {
+      projectStatus.textContent = running ? 'Running' : 'Stopped';
+      runtimeStatus.textContent = running ? 'Online' : 'Offline';
+      runtimeTitle.textContent = running ? 'Project is running' : 'Project is stopped';
+      runtimeUrl.textContent = running ? 'http://127.0.0.1:8787' : 'Ready to start';
+      primaryRuntimeAction.innerHTML = running
+        ? '<i data-lucide="external-link"></i> Open preview'
+        : '<i data-lucide="play"></i> Start project';
+      stopRuntime.style.display = running ? 'inline-grid' : 'none';
+      [projectStatus, runtimeStatus].forEach((item) => item.classList.toggle('running', running));
+      document.querySelector('#uptime').textContent = running ? '12 min' : '--';
+      document.querySelector('#memory').textContent = running ? '86 MB' : '0 MB';
+      renderIcons();
+    }
+
+    primaryRuntimeAction.addEventListener('click', () => {
+      if (running) showToast('Opening project preview');
+      else {
+        running = true;
+        updateRuntime();
+        showToast('Project started');
+      }
+    });
+    stopRuntime.addEventListener('click', () => {
+      running = false;
+      updateRuntime();
+      showToast('Project stopped');
+    });
+
+    const initialRoute = window.location.hash.slice(1).split('/').filter(Boolean);
+    if (initialRoute[0] === 'project') {
+      showScreen('project');
+      if (['overview', 'logs', 'publish'].includes(initialRoute[1])) {
+        selectProjectTab(initialRoute[1]);
+      }
+      if (initialRoute[1] === 'publish' && initialRoute[2] === 'public') {
+        document.querySelector('[data-access="public"]').click();
+        if (['linkora', 'own'].includes(initialRoute[3])) {
+          document.querySelector(`[data-provider="${initialRoute[3]}"]`).click();
+        }
+      }
+    } else if (['projects', 'activity', 'settings'].includes(initialRoute[0])) {
+      showScreen(initialRoute[0]);
+    } else {
+      bindDynamicHeader();
+      renderIcons();
+    }
+  </script>
+</body>
+</html>

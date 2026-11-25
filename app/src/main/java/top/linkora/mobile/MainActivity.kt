@@ -20,7 +20,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
 import top.linkora.mobile.auth.LinkoraAuthViewModel
+import top.linkora.mobile.auth.LinkoraAuthUrlPolicy
 import top.linkora.mobile.connector.TunnelConnectorService
 import top.linkora.mobile.connector.TunnelConnectorStatus
 import top.linkora.mobile.database.DatabaseExplorerViewModel
@@ -28,11 +30,14 @@ import top.linkora.mobile.mariadb.MariaDbRuntimeViewModel
 import top.linkora.mobile.node.NodeRuntimeViewModel
 import top.linkora.mobile.php.PhpRuntimeViewModel
 import top.linkora.mobile.project.ProjectKind
+import top.linkora.mobile.project.ProjectServerService
 import top.linkora.mobile.project.ProjectWorkspaceState
 import top.linkora.mobile.project.ProjectWorkspaceViewModel
 import top.linkora.mobile.publish.PublishViewModel
 import top.linkora.mobile.runtime.RuntimePackViewModel
 import top.linkora.mobile.runtime.RuntimePackDownloadViewModel
+import top.linkora.mobile.settings.AppModeViewModel
+import top.linkora.mobile.settings.HostingSettingsViewModel
 import top.linkora.mobile.ui.LinkoraApp
 import top.linkora.mobile.ui.theme.LinkoraTheme
 
@@ -46,8 +51,11 @@ class MainActivity : ComponentActivity() {
     private val databaseExplorerViewModel: DatabaseExplorerViewModel by viewModels()
     private val runtimePackViewModel: RuntimePackViewModel by viewModels()
     private val runtimeDownloadViewModel: RuntimePackDownloadViewModel by viewModels()
+    private val appModeViewModel: AppModeViewModel by viewModels()
+    private val hostingSettingsViewModel: HostingSettingsViewModel by viewModels()
     private var pendingRuntimeAction: (() -> Unit)? = null
     private var pendingRuntimeInstallId: String? = null
+    private var pendingAutoInstallId: String? = null
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) {
@@ -115,13 +123,27 @@ class MainActivity : ComponentActivity() {
             val databaseExplorerState by databaseExplorerViewModel.uiState.collectAsState()
             val runtimePackState by runtimePackViewModel.uiState.collectAsState()
             val runtimeDownloadState by runtimeDownloadViewModel.uiState.collectAsState()
+            val appMode by appModeViewModel.mode.collectAsState()
+            val hostingSettings by hostingSettingsViewModel.state.collectAsState()
 
             LaunchedEffect(authViewModel) {
                 authViewModel.browserRequests.collect(::openWebSignIn)
             }
+            LaunchedEffect(runtimeDownloadViewModel) {
+                runtimeDownloadViewModel.installRequests.collect { runtimeId ->
+                    if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                        requestRuntimeInstall(runtimeId)
+                    } else {
+                        pendingAutoInstallId = runtimeId
+                    }
+                }
+            }
 
             LinkoraTheme {
                 LinkoraApp(
+                    appMode = appMode,
+                    hostingAccess = hostingSettings.access,
+                    localNetworkUrl = hostingSettings.localNetworkUrl,
                     authState = authState,
                     projectState = projectState,
                     publishState = publishState,
@@ -132,6 +154,25 @@ class MainActivity : ComponentActivity() {
                     databaseExplorerState = databaseExplorerState,
                     runtimePackState = runtimePackState,
                     runtimeDownloadState = runtimeDownloadState,
+                    onSelectAppMode = appModeViewModel::select,
+                    onSelectHostingAccess = { access ->
+                        hostingSettingsViewModel.select(access)
+                        val activeWorkspace =
+                            (projectViewModel.uiState.value as? ProjectWorkspaceState.Ready)?.workspace
+                        when (activeWorkspace?.kind) {
+                            ProjectKind.Static -> runWithRuntimeNotification {
+                                ProjectServerService.stop(this)
+                                ProjectServerService.start(this)
+                            }
+                            ProjectKind.Node -> if (nodeRuntimeState.isRunning) {
+                                runWithRuntimeNotification(nodeRuntimeViewModel::restart)
+                            }
+                            ProjectKind.Php -> if (phpRuntimeState.isRunning) {
+                                runWithRuntimeNotification(phpRuntimeViewModel::restart)
+                            }
+                            null -> Unit
+                        }
+                    },
                     onStartSignIn = authViewModel::startSignIn,
                     onReopenBrowser = authViewModel::reopenBrowser,
                     onCancelSignIn = authViewModel::cancelSignIn,
@@ -149,7 +190,19 @@ class MainActivity : ComponentActivity() {
                     onLoadPublish = publishViewModel::load,
                     onClaimHostname = publishViewModel::claim,
                     onConnectHostname = publishViewModel::connect,
+                    onConnectOwnDomain = { hostname, token ->
+                        runWithRuntimeNotification {
+                            TunnelConnectorService.start(this, hostname, token)
+                        }
+                    },
                     onOpenFiles = ::chooseProjectFolder,
+                    onUpdateLaunchCommand = { command ->
+                        val activeWorkspace =
+                            (projectViewModel.uiState.value as? ProjectWorkspaceState.Ready)?.workspace
+                        if (activeWorkspace?.kind == ProjectKind.Node) nodeRuntimeViewModel.stop()
+                        if (activeWorkspace?.kind == ProjectKind.Php) phpRuntimeViewModel.stop()
+                        projectViewModel.updateLaunchCommand(command)
+                    },
                     onStopConnector = { TunnelConnectorService.stop(this) },
                     onStartNode = {
                         runWithRuntimeNotification(nodeRuntimeViewModel::start)
@@ -194,14 +247,20 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         runtimePackViewModel.refresh()
         runtimeDownloadViewModel.refresh()
+        hostingSettingsViewModel.refresh()
+        pendingAutoInstallId?.let { runtimeId ->
+            pendingAutoInstallId = null
+            requestRuntimeInstall(runtimeId)
+        }
     }
 
     private fun openWebSignIn(url: String) {
+        val allowedUrl = LinkoraAuthUrlPolicy.allowedUrl(url) ?: return
         CustomTabsIntent.Builder()
             .setShowTitle(true)
             .setUrlBarHidingEnabled(true)
             .build()
-            .launchUrl(this, Uri.parse(url))
+            .launchUrl(this, Uri.parse(allowedUrl))
     }
 
     private fun runWithRuntimeNotification(action: () -> Unit) {

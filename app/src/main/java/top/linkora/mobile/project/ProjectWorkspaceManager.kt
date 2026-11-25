@@ -13,6 +13,8 @@ import androidx.annotation.RequiresApi
 import java.io.File
 import java.io.FilterInputStream
 import java.io.InputStream
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 import org.json.JSONObject
 
@@ -43,6 +45,7 @@ class ProjectWorkspaceManager(private val context: Context) {
     fun selectProjectTree(uri: Uri): ProjectWorkspace {
         require(uri.scheme == "content") { "Choose a folder from Android Files." }
         val kind = activeKind()
+        preferences.edit().remove(launchCommandKey(kind)).apply()
         val workspace = buildTreeWorkspace(uri, kind)
         preferences.edit().putString(selectedTreeKey(kind), uri.toString()).apply()
         activateLocalOrigin(kind)
@@ -52,6 +55,14 @@ class ProjectWorkspaceManager(private val context: Context) {
     fun activeKind(): ProjectKind = ProjectKind.fromId(
         preferences.getString(ACTIVE_KIND_KEY, ProjectKind.Static.id),
     )
+
+    fun updateLaunchCommand(value: String): ProjectWorkspace {
+        val kind = activeKind()
+        require(kind != ProjectKind.Static) { "Static projects do not use a start command." }
+        val command = ProjectCommandParser.parse(value, kind).display()
+        preferences.edit().putString(launchCommandKey(kind), command).apply()
+        return prepareProject(kind)
+    }
 
     fun prepareNodeLaunch(): NodeLaunchConfig {
         check(activeKind() == ProjectKind.Node) { "Choose a Node.js project first." }
@@ -64,6 +75,7 @@ class ProjectWorkspaceManager(private val context: Context) {
         val selectedTree = selectedTreeUri(ProjectKind.Node)
         val importedFiles = if (selectedTree != null) {
             val rootId = DocumentsContract.getTreeDocumentId(selectedTree)
+            val importGuard = ProjectImportGuard(runtimeDirectory)
             buildSet {
                 copyTree(
                     treeUri = selectedTree,
@@ -72,6 +84,7 @@ class ProjectWorkspaceManager(private val context: Context) {
                     depth = 0,
                     relativeParent = "",
                     importedFiles = this,
+                    importGuard = importGuard,
                 )
             }
         } else {
@@ -80,9 +93,13 @@ class ProjectWorkspaceManager(private val context: Context) {
         updateImportedSourceManifest(runtimeDirectory, importedFiles)
 
         val inspection = inspectNodeDirectory(runtimeDirectory)
+        val command = ProjectCommandParser.parse(
+            storedLaunchCommand(ProjectKind.Node) ?: inspection.defaultCommand,
+            ProjectKind.Node,
+        )
         return NodeLaunchConfig(
             projectDirectory = runtimeDirectory,
-            entryPoint = inspection.entryPoint,
+            command = command,
         )
     }
 
@@ -97,6 +114,7 @@ class ProjectWorkspaceManager(private val context: Context) {
         val selectedTree = selectedTreeUri(ProjectKind.Php)
         val importedFiles = if (selectedTree != null) {
             val rootId = DocumentsContract.getTreeDocumentId(selectedTree)
+            val importGuard = ProjectImportGuard(runtimeDirectory)
             buildSet {
                 copyTree(
                     treeUri = selectedTree,
@@ -105,6 +123,7 @@ class ProjectWorkspaceManager(private val context: Context) {
                     depth = 0,
                     relativeParent = "",
                     importedFiles = this,
+                    importGuard = importGuard,
                 )
             }
         } else {
@@ -112,12 +131,18 @@ class ProjectWorkspaceManager(private val context: Context) {
         }
         updateImportedSourceManifest(runtimeDirectory, importedFiles)
 
-        check(File(runtimeDirectory, PHP_ENTRY_POINT).isFile) {
-            "No index.php file was found after project sync."
-        }
+        val hasIndex = File(runtimeDirectory, PHP_ENTRY_POINT).isFile
+        val hasArtisan = File(runtimeDirectory, "artisan").isFile &&
+            File(runtimeDirectory, "public/index.php").isFile
+        check(hasIndex || hasArtisan) { "No runnable PHP entry point was found after project sync." }
+        val defaultCommand = if (hasArtisan) PHP_ARTISAN_COMMAND else PHP_SERVER_COMMAND
+        val command = ProjectCommandParser.parse(
+            storedLaunchCommand(ProjectKind.Php) ?: defaultCommand,
+            ProjectKind.Php,
+        )
         return PhpLaunchConfig(
             projectDirectory = runtimeDirectory,
-            entryPoint = PHP_ENTRY_POINT,
+            command = command,
         )
     }
 
@@ -153,6 +178,8 @@ class ProjectWorkspaceManager(private val context: Context) {
         val inspection = when (definition.kind) {
             ProjectKind.Node -> NodeInspection(
                 entryPoint = "server.js",
+                commands = listOf("npm start", "node server.js"),
+                defaultCommand = "npm start",
                 hasDependencies = false,
                 sqliteCompatibilityDrivers = emptyList(),
             )
@@ -174,6 +201,17 @@ class ProjectWorkspaceManager(private val context: Context) {
             } else {
                 null
             },
+            launchCommand = when (definition.kind) {
+                ProjectKind.Node -> storedLaunchCommand(definition.kind)
+                    ?: inspection?.defaultCommand
+                ProjectKind.Php -> storedLaunchCommand(definition.kind) ?: PHP_SERVER_COMMAND
+                ProjectKind.Static -> null
+            },
+            availableCommands = when (definition.kind) {
+                ProjectKind.Node -> inspection?.commands.orEmpty()
+                ProjectKind.Php -> listOf(PHP_SERVER_COMMAND)
+                ProjectKind.Static -> emptyList()
+            },
             hasDependencies = inspection?.hasDependencies ?: false,
             sqliteCompatibilityDrivers = inspection?.sqliteCompatibilityDrivers.orEmpty(),
         )
@@ -190,6 +228,12 @@ class ProjectWorkspaceManager(private val context: Context) {
     }
 
     private fun selectedTreeKey(kind: ProjectKind) = "selected_tree_uri_${kind.id}"
+
+    private fun launchCommandKey(kind: ProjectKind) = "launch_command_${kind.id}"
+
+    private fun storedLaunchCommand(kind: ProjectKind): String? = preferences
+        .getString(launchCommandKey(kind), null)
+        ?.takeIf(String::isNotBlank)
 
     private fun clearSelectedTree(kind: ProjectKind) {
         preferences.edit()
@@ -221,8 +265,11 @@ class ProjectWorkspaceManager(private val context: Context) {
             ProjectKind.Node -> inspectNodeTree(treeUri)
 
             ProjectKind.Php -> {
-                check(children.any { it.name == PHP_ENTRY_POINT && !it.isDirectory }) {
-                    "Choose a folder containing an index.php file."
+                val hasIndex = children.any { it.name == PHP_ENTRY_POINT && !it.isDirectory }
+                val hasArtisan = children.any { it.name == "artisan" && !it.isDirectory } &&
+                    treeFileExists(treeUri, "public/index.php")
+                check(hasIndex || hasArtisan) {
+                    "Choose a PHP folder containing index.php or a Laravel artisan project."
                 }
                 null
             }
@@ -243,6 +290,27 @@ class ProjectWorkspaceManager(private val context: Context) {
             } else {
                 null
             },
+            launchCommand = when (kind) {
+                ProjectKind.Node -> storedLaunchCommand(kind) ?: nodeInspection?.defaultCommand
+                ProjectKind.Php -> storedLaunchCommand(kind) ?: if (
+                    children.any { it.name == "artisan" && !it.isDirectory }
+                ) {
+                    PHP_ARTISAN_COMMAND
+                } else {
+                    PHP_SERVER_COMMAND
+                }
+                ProjectKind.Static -> null
+            },
+            availableCommands = when (kind) {
+                ProjectKind.Node -> nodeInspection?.commands.orEmpty()
+                ProjectKind.Php -> buildList {
+                    add(PHP_SERVER_COMMAND)
+                    if (children.any { it.name == "artisan" && !it.isDirectory }) {
+                        add(PHP_ARTISAN_COMMAND)
+                    }
+                }
+                ProjectKind.Static -> emptyList()
+            },
             hasDependencies = nodeInspection?.hasDependencies ?: false,
             sqliteCompatibilityDrivers = nodeInspection?.sqliteCompatibilityDrivers.orEmpty(),
         )
@@ -259,12 +327,15 @@ class ProjectWorkspaceManager(private val context: Context) {
             .mapNotNull(::safeRelativePath)
             .distinct()
             .firstOrNull { treeFileExists(treeUri, it) }
-            ?: error(
+        check(entryPoint != null || manifest?.scripts?.isNotEmpty() == true) {
                 "Choose a Node.js folder containing package.json and a runnable " +
-                    "server.js, index.js, app.js, .mjs, or .cjs entry file.",
-            )
+                    "script, server.js, index.js, app.js, .mjs, or .cjs entry file."
+        }
+        val commands = nodeCommands(manifest, entryPoint)
         return NodeInspection(
             entryPoint = entryPoint,
+            commands = commands,
+            defaultCommand = commands.first(),
             hasDependencies = manifest?.hasDependencies == true,
             sqliteCompatibilityDrivers = manifest?.sqliteCompatibilityDrivers.orEmpty(),
         )
@@ -288,9 +359,14 @@ class ProjectWorkspaceManager(private val context: Context) {
                 val file = File(root, candidate).canonicalFile
                 file.isFile && file.path.startsWith("${root.path}${File.separator}")
             }
-            ?: error("No supported Node.js entry file was found after project sync.")
+        check(entryPoint != null || manifest?.scripts?.isNotEmpty() == true) {
+            "No runnable Node.js script or entry file was found after project sync."
+        }
+        val commands = nodeCommands(manifest, entryPoint)
         return NodeInspection(
             entryPoint = entryPoint,
+            commands = commands,
+            defaultCommand = commands.first(),
             hasDependencies = manifest?.hasDependencies == true,
             sqliteCompatibilityDrivers = manifest?.sqliteCompatibilityDrivers.orEmpty(),
         )
@@ -299,7 +375,13 @@ class ProjectWorkspaceManager(private val context: Context) {
     private fun parseManifest(contents: String): NodeManifest {
         val manifest = runCatching { JSONObject(contents) }
             .getOrElse { error("package.json is not valid JSON.") }
-        val startScript = manifest.optJSONObject("scripts")?.optString("start")
+        val scriptsObject = manifest.optJSONObject("scripts")
+        val scripts = scriptsObject?.keys()?.asSequence()
+            ?.filter { it.isNotBlank() && it.none(Char::isWhitespace) }
+            ?.toList()
+            ?.sortedWith(compareBy<String> { it != "start" }.thenBy { it })
+            .orEmpty()
+        val startScript = scriptsObject?.optString("start")
         val startEntry = startScript
             ?.let { NODE_START_PATTERN.matchEntire(it)?.groupValues?.get(1) }
         val dependencyGroups = listOfNotNull(
@@ -310,12 +392,23 @@ class ProjectWorkspaceManager(private val context: Context) {
         return NodeManifest(
             main = manifest.optString("main").takeIf(String::isNotBlank),
             startEntry = startEntry,
+            scripts = scripts,
             hasDependencies = dependencyGroups.any { it.length() > 0 },
             sqliteCompatibilityDrivers = SQLITE_COMPATIBILITY_DRIVERS.filter { driver ->
                 dependencyGroups.any { it.has(driver) }
             },
         )
     }
+
+    private fun nodeCommands(manifest: NodeManifest?, entryPoint: String?): List<String> =
+        buildList {
+            manifest?.scripts.orEmpty().forEach { script ->
+                add(if (script == "start") "npm start" else "npm run $script")
+            }
+            entryPoint?.let { path ->
+                add(ProjectCommand(ProjectExecutable.Node, listOf(path)).display())
+            }
+        }.distinct()
 
     private fun safeRelativePath(path: String): String? {
         val normalized = path.replace('\\', '/').removePrefix("./")
@@ -372,22 +465,21 @@ class ProjectWorkspaceManager(private val context: Context) {
         depth: Int,
         relativeParent: String,
         importedFiles: MutableSet<String>,
+        importGuard: ProjectImportGuard,
     ) {
         check(depth <= MAX_TREE_DEPTH) { "The project folder is nested too deeply." }
+        importGuard.requireWorkspaceDirectory(destination)
         check(destination.mkdirs() || destination.isDirectory) {
             "The private runtime workspace could not be created."
         }
         queryChildren(treeUri, parentId).forEach { entry ->
             if (entry.name in IGNORED_NODE_DIRECTORIES) return@forEach
-            check(entry.name.isNotBlank() && '/' !in entry.name && '\\' !in entry.name) {
-                "The project contains an unsupported file name."
-            }
             val relativePath = if (relativeParent.isBlank()) {
                 entry.name
             } else {
                 "$relativeParent/${entry.name}"
             }
-            val output = File(destination, entry.name)
+            val output = importGuard.resolveChild(destination, entry.name)
             if (entry.isDirectory) {
                 if (output.isFile) check(output.delete()) {
                     "A previous project file could not be replaced with a directory."
@@ -399,14 +491,30 @@ class ProjectWorkspaceManager(private val context: Context) {
                     depth = depth + 1,
                     relativeParent = relativePath,
                     importedFiles = importedFiles,
+                    importGuard = importGuard,
                 )
             } else {
                 if (output.isDirectory) check(output.deleteRecursively()) {
                     "A previous project directory could not be replaced with a file."
                 }
                 val documentUri = DocumentsContract.buildDocumentUriUsingTree(treeUri, entry.id)
-                checkNotNull(context.contentResolver.openInputStream(documentUri)).use { input ->
-                    output.outputStream().use { stream -> input.copyTo(stream) }
+                val temporary = File.createTempFile(".linkora-import-", ".tmp", destination)
+                try {
+                    checkNotNull(context.contentResolver.openInputStream(documentUri)).use { input ->
+                        importGuard.copyFile(
+                            input = input,
+                            output = temporary,
+                            declaredBytes = entry.size,
+                            displayPath = relativePath,
+                        )
+                    }
+                    Files.move(
+                        temporary.toPath(),
+                        output.toPath(),
+                        StandardCopyOption.REPLACE_EXISTING,
+                    )
+                } finally {
+                    temporary.delete()
                 }
                 importedFiles += relativePath
             }
@@ -733,6 +841,9 @@ class ProjectWorkspaceManager(private val context: Context) {
         private const val NODE_RUNTIME_PROJECT_ROOT = "node/projects"
         private const val PHP_RUNTIME_PROJECT_ROOT = "php/projects"
         private const val PHP_ENTRY_POINT = "index.php"
+        private const val PHP_SERVER_COMMAND = "php -S {HOST}:{PORT} -t ."
+        private const val PHP_ARTISAN_COMMAND =
+            "php artisan serve --host={HOST} --port={PORT}"
         private const val LEGACY_NODE_RUNTIME_PROJECT_PATH = "$NODE_RUNTIME_PROJECT_ROOT/active"
         private const val LINKORA_RUNTIME_DIRECTORY = ".linkora"
         private const val IMPORTED_SOURCE_MANIFEST = "imported-source-files.txt"
@@ -765,12 +876,15 @@ private data class ProjectDefinition(
 private data class NodeManifest(
     val main: String?,
     val startEntry: String?,
+    val scripts: List<String>,
     val hasDependencies: Boolean,
     val sqliteCompatibilityDrivers: List<String>,
 )
 
 private data class NodeInspection(
-    val entryPoint: String,
+    val entryPoint: String?,
+    val commands: List<String>,
+    val defaultCommand: String,
     val hasDependencies: Boolean,
     val sqliteCompatibilityDrivers: List<String>,
 )

@@ -73,4 +73,20 @@ class ProjectWorkspaceViewModel(application: Application) : AndroidViewModel(app
             }
         }
     }
+
+    fun updateLaunchCommand(command: String) {
+        val current = (_uiState.value as? ProjectWorkspaceState.Ready)?.workspace ?: return
+        viewModelScope.launch {
+            _uiState.value = try {
+                ProjectWorkspaceState.Ready(
+                    withContext(Dispatchers.IO) { manager.updateLaunchCommand(command) },
+                )
+            } catch (error: Exception) {
+                ProjectWorkspaceState.Ready(
+                    workspace = current,
+                    notice = error.message ?: "The start command is not valid.",
+                )
+            }
+        }
+    }
 }

@@ -18,18 +18,20 @@ data class ProjectWorkspace(
     val isStarter: Boolean,
     val kind: ProjectKind,
     val entryPoint: String? = null,
+    val launchCommand: String? = null,
+    val availableCommands: List<String> = emptyList(),
     val hasDependencies: Boolean = false,
     val sqliteCompatibilityDrivers: List<String> = emptyList(),
 )
 
 data class NodeLaunchConfig(
     val projectDirectory: java.io.File,
-    val entryPoint: String,
+    val command: ProjectCommand,
 )
 
 data class PhpLaunchConfig(
     val projectDirectory: java.io.File,
-    val entryPoint: String,
+    val command: ProjectCommand,
 )
 
 sealed interface ProjectWorkspaceState {
