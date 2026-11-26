@@ -3,4 +3,7 @@
     <external-files-path
         name="runtime_installers"
         path="Download/runtime-packs/" />
+    <external-files-path
+        name="app_updates"
+        path="Download/app-updates/" />
 </paths>
