@@ -40,6 +40,7 @@ import top.linkora.mobile.settings.AppModeViewModel
 import top.linkora.mobile.settings.HostingSettingsViewModel
 import top.linkora.mobile.ui.LinkoraApp
 import top.linkora.mobile.ui.theme.LinkoraTheme
+import top.linkora.mobile.update.AppUpdateViewModel
 
 class MainActivity : ComponentActivity() {
     private val authViewModel: LinkoraAuthViewModel by viewModels()
@@ -53,9 +54,12 @@ class MainActivity : ComponentActivity() {
     private val runtimeDownloadViewModel: RuntimePackDownloadViewModel by viewModels()
     private val appModeViewModel: AppModeViewModel by viewModels()
     private val hostingSettingsViewModel: HostingSettingsViewModel by viewModels()
+    private val appUpdateViewModel: AppUpdateViewModel by viewModels()
     private var pendingRuntimeAction: (() -> Unit)? = null
     private var pendingRuntimeInstallId: String? = null
     private var pendingAutoInstallId: String? = null
+    private var pendingAppUpdateInstall = false
+    private var pendingAutoAppUpdateInstall = false
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) {
@@ -89,9 +93,19 @@ class MainActivity : ComponentActivity() {
         runtimePackViewModel.refresh()
         runtimeDownloadViewModel.refresh()
     }
+    private val appUpdateInstallLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) {
+        appUpdateViewModel.refresh()
+    }
     private val unknownSourcesLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
     ) {
+        if (pendingAppUpdateInstall) {
+            pendingAppUpdateInstall = false
+            if (packageManager.canRequestPackageInstalls()) launchAppUpdateInstaller()
+            return@registerForActivityResult
+        }
         val runtimeId = pendingRuntimeInstallId
         pendingRuntimeInstallId = null
         if (runtimeId != null && packageManager.canRequestPackageInstalls()) {
@@ -125,6 +139,7 @@ class MainActivity : ComponentActivity() {
             val runtimeDownloadState by runtimeDownloadViewModel.uiState.collectAsState()
             val appMode by appModeViewModel.mode.collectAsState()
             val hostingSettings by hostingSettingsViewModel.state.collectAsState()
+            val appUpdateState by appUpdateViewModel.state.collectAsState()
 
             LaunchedEffect(authViewModel) {
                 authViewModel.browserRequests.collect(::openWebSignIn)
@@ -135,6 +150,15 @@ class MainActivity : ComponentActivity() {
                         requestRuntimeInstall(runtimeId)
                     } else {
                         pendingAutoInstallId = runtimeId
+                    }
+                }
+            }
+            LaunchedEffect(appUpdateViewModel) {
+                appUpdateViewModel.installRequests.collect {
+                    if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                        requestAppUpdateInstall()
+                    } else {
+                        pendingAutoAppUpdateInstall = true
                     }
                 }
             }
@@ -154,6 +178,7 @@ class MainActivity : ComponentActivity() {
                     databaseExplorerState = databaseExplorerState,
                     runtimePackState = runtimePackState,
                     runtimeDownloadState = runtimeDownloadState,
+                    appUpdateState = appUpdateState,
                     onSelectAppMode = appModeViewModel::select,
                     onSelectHostingAccess = { access ->
                         hostingSettingsViewModel.select(access)
@@ -232,6 +257,10 @@ class MainActivity : ComponentActivity() {
                     onCancelRuntimeDownload = runtimeDownloadViewModel::cancel,
                     onInstallRuntime = ::requestRuntimeInstall,
                     onRemoveRuntimeInstaller = runtimeDownloadViewModel::removeInstaller,
+                    onCheckForAppUpdate = appUpdateViewModel::checkForUpdate,
+                    onDownloadAppUpdate = appUpdateViewModel::download,
+                    onCancelAppUpdate = appUpdateViewModel::cancelDownload,
+                    onInstallAppUpdate = ::requestAppUpdateInstall,
                     onRefreshDatabaseExplorer = databaseExplorerViewModel::refresh,
                     onSetDatabaseExplorerMode = databaseExplorerViewModel::setMode,
                     onShowDatabaseTables = databaseExplorerViewModel::showTables,
@@ -247,10 +276,15 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         runtimePackViewModel.refresh()
         runtimeDownloadViewModel.refresh()
+        appUpdateViewModel.refresh()
         hostingSettingsViewModel.refresh()
         pendingAutoInstallId?.let { runtimeId ->
             pendingAutoInstallId = null
             requestRuntimeInstall(runtimeId)
+        }
+        if (pendingAutoAppUpdateInstall) {
+            pendingAutoAppUpdateInstall = false
+            requestAppUpdateInstall()
         }
     }
 
@@ -294,6 +328,24 @@ class MainActivity : ComponentActivity() {
 
     private fun launchRuntimeInstaller(runtimeId: String) {
         runtimeDownloadViewModel.createInstallIntent(runtimeId)?.let(runtimeInstallLauncher::launch)
+    }
+
+    private fun requestAppUpdateInstall() {
+        if (!packageManager.canRequestPackageInstalls()) {
+            pendingAppUpdateInstall = true
+            unknownSourcesLauncher.launch(
+                Intent(
+                    Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                    Uri.parse("package:$packageName"),
+                ),
+            )
+            return
+        }
+        launchAppUpdateInstaller()
+    }
+
+    private fun launchAppUpdateInstaller() {
+        appUpdateViewModel.createInstallIntent()?.let(appUpdateInstallLauncher::launch)
     }
 
     private fun chooseProjectFolder() {

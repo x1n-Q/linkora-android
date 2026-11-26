@@ -50,6 +50,7 @@ import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
@@ -73,6 +74,7 @@ import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Smartphone
 import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.Storage
+import androidx.compose.material.icons.rounded.SystemUpdateAlt
 import androidx.compose.material.icons.rounded.Terminal
 import androidx.compose.material.icons.rounded.Timeline
 import androidx.compose.material.icons.rounded.Wifi
@@ -138,6 +140,8 @@ import top.linkora.mobile.ui.theme.PaperRaised
 import top.linkora.mobile.ui.theme.StrongBorder
 import top.linkora.mobile.ui.theme.WarmPaper
 import top.linkora.mobile.ui.database.DatabaseExplorerScreen
+import top.linkora.mobile.update.AppUpdatePhase
+import top.linkora.mobile.update.AppUpdateState
 
 private enum class OnboardingStep {
     ServiceMode,
@@ -194,6 +198,7 @@ fun LinkoraApp(
     databaseExplorerState: DatabaseExplorerState,
     runtimePackState: RuntimePackUiState,
     runtimeDownloadState: RuntimeDownloadUiState,
+    appUpdateState: AppUpdateState,
     onSelectAppMode: (AppMode) -> Unit,
     onSelectHostingAccess: (HostingAccess) -> Unit,
     onStartSignIn: () -> Unit,
@@ -223,6 +228,10 @@ fun LinkoraApp(
     onCancelRuntimeDownload: (String) -> Unit,
     onInstallRuntime: (String) -> Unit,
     onRemoveRuntimeInstaller: (String) -> Unit,
+    onCheckForAppUpdate: () -> Unit,
+    onDownloadAppUpdate: () -> Unit,
+    onCancelAppUpdate: () -> Unit,
+    onInstallAppUpdate: () -> Unit,
     onRefreshDatabaseExplorer: () -> Unit,
     onSetDatabaseExplorerMode: (DatabaseExplorerMode) -> Unit,
     onShowDatabaseTables: () -> Unit,
@@ -427,6 +436,7 @@ fun LinkoraApp(
                             MainDestination.Settings -> CleanSettingsScreen(
                                 authState = authState,
                                 runtimePackState = runtimePackState,
+                                appUpdateState = appUpdateState,
                                 onOpenRuntimes = { openRuntimeManager(CleanRoute.Main) },
                                 onSignIn = {
                                     signInForPublishing = false
@@ -434,6 +444,10 @@ fun LinkoraApp(
                                     route = CleanRoute.WebSignIn
                                 },
                                 onSignOut = onSignOut,
+                                onCheckForAppUpdate = onCheckForAppUpdate,
+                                onDownloadAppUpdate = onDownloadAppUpdate,
+                                onCancelAppUpdate = onCancelAppUpdate,
+                                onInstallAppUpdate = onInstallAppUpdate,
                             )
                         }
 
@@ -1024,10 +1038,16 @@ private fun CleanActivityRow(
 private fun CleanSettingsScreen(
     authState: AuthUiState,
     runtimePackState: RuntimePackUiState,
+    appUpdateState: AppUpdateState,
     onOpenRuntimes: () -> Unit,
     onSignIn: () -> Unit,
     onSignOut: () -> Unit,
+    onCheckForAppUpdate: () -> Unit,
+    onDownloadAppUpdate: () -> Unit,
+    onCancelAppUpdate: () -> Unit,
+    onInstallAppUpdate: () -> Unit,
 ) {
+    var showUpdateDialog by rememberSaveable { mutableStateOf(false) }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(18.dp),
@@ -1086,6 +1106,13 @@ private fun CleanSettingsScreen(
         item {
             CleanListGroup {
                 CleanSettingsRow(
+                    icon = Icons.Rounded.SystemUpdateAlt,
+                    title = "App updates",
+                    subtitle = appUpdateState.message,
+                    value = appUpdateLabel(appUpdateState),
+                    onClick = { showUpdateDialog = true },
+                )
+                CleanSettingsRow(
                     icon = Icons.Rounded.Notifications,
                     title = "Runtime notification",
                     subtitle = "Shows running projects and memory",
@@ -1096,13 +1123,151 @@ private fun CleanSettingsScreen(
                     icon = Icons.Rounded.Info,
                     title = "About Linkora",
                     subtitle = "Android project runtime",
-                    value = "0.7.0",
+                    value = appUpdateState.currentVersion,
                     onClick = null,
                     last = true,
                 )
             }
         }
     }
+
+    if (showUpdateDialog) {
+        AppUpdateDialog(
+            state = appUpdateState,
+            onCheck = onCheckForAppUpdate,
+            onDownload = onDownloadAppUpdate,
+            onCancelDownload = onCancelAppUpdate,
+            onInstall = onInstallAppUpdate,
+            onDismiss = { showUpdateDialog = false },
+        )
+    }
+}
+
+private fun appUpdateLabel(state: AppUpdateState): String = when (state.phase) {
+    AppUpdatePhase.Idle -> "Check"
+    AppUpdatePhase.Checking -> "Checking"
+    AppUpdatePhase.UpToDate -> "Current"
+    AppUpdatePhase.Available -> "Available"
+    AppUpdatePhase.Downloading -> state.progress?.let { "${(it * 100).toInt()}%" } ?: "Downloading"
+    AppUpdatePhase.ReadyToInstall -> "Install"
+    AppUpdatePhase.Installing -> "Installing"
+    AppUpdatePhase.Failed -> "Retry"
+}
+
+@Composable
+private fun AppUpdateDialog(
+    state: AppUpdateState,
+    onCheck: () -> Unit,
+    onDownload: () -> Unit,
+    onCancelDownload: () -> Unit,
+    onInstall: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val primaryAction: (() -> Unit)? = when (state.phase) {
+        AppUpdatePhase.Idle,
+        AppUpdatePhase.UpToDate,
+        AppUpdatePhase.Failed,
+        -> onCheck
+        AppUpdatePhase.Available -> onDownload
+        AppUpdatePhase.Downloading -> onCancelDownload
+        AppUpdatePhase.ReadyToInstall -> onInstall
+        AppUpdatePhase.Checking,
+        AppUpdatePhase.Installing,
+        -> null
+    }
+    val primaryLabel = when (state.phase) {
+        AppUpdatePhase.Idle -> "Check now"
+        AppUpdatePhase.Checking -> "Checking"
+        AppUpdatePhase.UpToDate -> "Check again"
+        AppUpdatePhase.Available -> "Download update"
+        AppUpdatePhase.Downloading -> "Cancel download"
+        AppUpdatePhase.ReadyToInstall -> "Install update"
+        AppUpdatePhase.Installing -> "Opening installer"
+        AppUpdatePhase.Failed -> "Try again"
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Linkora updates") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    "Installed version ${state.currentVersion}",
+                    color = MutedText,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 12.sp,
+                )
+                state.release?.takeIf {
+                    state.phase in setOf(
+                        AppUpdatePhase.Available,
+                        AppUpdatePhase.Downloading,
+                        AppUpdatePhase.ReadyToInstall,
+                        AppUpdatePhase.Installing,
+                    )
+                }?.let { release ->
+                    Text(release.title, fontWeight = FontWeight.Bold)
+                    if (release.notes.isNotBlank()) {
+                        Text(
+                            release.notes,
+                            color = MutedText,
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 7,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+                if (state.phase == AppUpdatePhase.Checking) {
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = Oxblood,
+                        trackColor = PaleStone,
+                    )
+                }
+                if (state.phase == AppUpdatePhase.Downloading) {
+                    val progress = state.progress
+                    if (progress == null) {
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = Oxblood,
+                            trackColor = PaleStone,
+                        )
+                    } else {
+                        LinearProgressIndicator(
+                            progress = { progress },
+                            modifier = Modifier.fillMaxWidth(),
+                            color = Oxblood,
+                            trackColor = PaleStone,
+                        )
+                    }
+                }
+                Text(
+                    state.message,
+                    color = if (state.phase == AppUpdatePhase.Failed) Oxblood else MutedText,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    "Downloads come from the official GitHub release and are verified before Android opens the installer.",
+                    color = MutedText,
+                    fontSize = 12.sp,
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { primaryAction?.invoke() },
+                enabled = primaryAction != null,
+                colors = ButtonDefaults.buttonColors(containerColor = Oxblood),
+            ) {
+                Text(primaryLabel)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Close") }
+        },
+        containerColor = PaperRaised,
+        titleContentColor = Charcoal,
+        textContentColor = Charcoal,
+    )
 }
 
 private fun runtimeLabel(state: RuntimePackState): String = when (state) {
